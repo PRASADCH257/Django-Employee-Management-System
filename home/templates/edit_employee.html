@@ -1,0 +1,118 @@
+
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Edit Employee Details</title>
+
+    <link rel="stylesheet"
+          href="{% static 'home/css/edit_employee.css' %}">
+</head>
+
+<body>
+
+    <div class="edit-container">
+
+        <div class="header">
+            <h1>Edit Employee Details</h1>
+            <p>Update account and employee information</p>
+        </div>
+
+
+        <div class="employee-info employee-edit-media">
+            <div class="employee-edit-photo">
+                {% if employee.photo %}
+                    <img
+                        src="{{ employee.photo.url }}"
+                        alt="Current photo of {{ employee.full_name }}"
+                        class="employee-photo-preview"
+                    >
+                {% else %}
+                    <div class="employee-photo-placeholder" aria-hidden="true">
+                        {{ employee.full_name|first|upper }}
+                    </div>
+                {% endif %}
+            </div>
+            <div class="employee-info-copy">
+                <h3>{{ employee.full_name }}</h3>
+                <p>
+                    Employee ID:
+                    <strong>{{ employee.employee_id|default:"Not Assigned" }}</strong>
+                </p>
+                <p>Email: <strong>{{ employee.email }}</strong></p>
+                <p>
+                    Current Account Type:
+                    <strong>{{ employee.get_account_type_display }}</strong>
+                </p>
+            </div>
+        </div>
+
+
+        <!-- Edit Form -->
+
+        <form method="POST" enctype="multipart/form-data">
+
+            {% csrf_token %}
+
+            <div class="media-edit-fields">
+                <h2 class="media-edit-heading">Documents and Files</h2>
+                {% for field in form %}
+                    {% if field.name == 'photo' or field.name == 'resume' or field.name == 'document' or field.name == 'video' %}
+                        <div class="form-group">
+                            <label for="{{ field.id_for_label }}">Change {{ field.label }}</label>
+                            {% if field.help_text %}
+                                <small class="help-text">{{ field.help_text }}</small>
+                            {% endif %}
+                            {% if field.name == 'resume' and employee.resume or field.name == 'document' and employee.document or field.name == 'video' and employee.video %}
+                                <p>A file is currently uploaded. Choose a new file to replace it.</p>
+                            {% endif %}
+                            {{ field }}
+                            {% for error in field.errors %}
+                                <p class="error">{{ error }}</p>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                {% endfor %}
+            </div>
+
+            <h2>Personal, Professional, and Account Details</h2>
+
+            {% for field in form %}
+                {% if field.name != 'photo' and field.name != 'resume' and field.name != 'document' and field.name != 'video' %}
+                    <div class="form-group">
+                        <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                        {{ field }}
+                        {% for error in field.errors %}
+                            <p class="error">{{ error }}</p>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            {% endfor %}
+
+
+            <!-- Buttons -->
+
+            <div class="buttons">
+
+                <button type="submit" class="update-btn">
+                    Update Details
+                </button>
+
+                <a href="{% url 'manager_dashboard' %}"
+                   class="cancel-btn">
+                    Cancel
+                </a>
+
+            </div>
+
+        </form>
+
+    </div>
+
+</body>
+</html>

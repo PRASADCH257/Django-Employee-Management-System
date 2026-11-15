@@ -1,0 +1,145 @@
+
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Edit Employee Professional Details</title>
+
+    <link rel="stylesheet"
+          href="{% static 'home/css/hr_edit_employee.css' %}">
+</head>
+
+<body>
+
+    <div class="container">
+
+        <div class="header">
+            <h2>Edit Employee Professional Details</h2>
+            <p>Update the employee's professional information</p>
+        </div>
+
+        <div class="employee-info">
+            <div class="hr-employee-photo-container">
+                {% if employee.photo %}
+                    <img
+                        src="{{ employee.photo.url }}"
+                        alt="Current photo of {{ employee.full_name }}"
+                        class="hr-employee-photo"
+                    >
+                {% else %}
+                    <div class="hr-employee-photo-placeholder" aria-hidden="true">
+                        {{ employee.full_name|first|upper }}
+                    </div>
+                {% endif %}
+            </div>
+
+            <h3>{{ employee.full_name }}</h3>
+
+            <p>
+                Employee ID:
+                <strong>{{ employee.employee_id }}</strong>
+            </p>
+
+            <p>
+                Username:
+                <strong>{{ employee.username }}</strong>
+            </p>
+
+        </div>
+
+        {% if messages %}
+            {% for message in messages %}
+                <div class="message">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        {% endif %}
+
+        <form method="POST">
+
+            {% csrf_token %}
+
+            <div class="form-group">
+                <label for="{{ form.salary.id_for_label }}">
+                    Salary
+                </label>
+
+                {{ form.salary }}
+
+                {% for error in form.salary.errors %}
+                    <small class="error">{{ error }}</small>
+                {% endfor %}
+            </div>
+
+            <div class="form-group">
+                <label for="{{ form.role.id_for_label }}">
+                    Professional Role / Designation
+                </label>
+
+                {{ form.role }}
+
+                {% for error in form.role.errors %}
+                    <small class="error">{{ error }}</small>
+                {% endfor %}
+            </div>
+
+            <div class="form-group">
+                <label for="{{ form.department.id_for_label }}">
+                    Department
+                </label>
+
+                {{ form.department }}
+
+                {% for error in form.department.errors %}
+                    <small class="error">{{ error }}</small>
+                {% endfor %}
+            </div>
+
+            <div class="form-group">
+                <label for="{{ form.current_project.id_for_label }}">
+                    Current Project
+                </label>
+
+                {{ form.current_project }}
+
+                {% for error in form.current_project.errors %}
+                    <small class="error">{{ error }}</small>
+                {% endfor %}
+            </div>
+
+            <div class="form-group">
+                <label for="{{ form.team_number.id_for_label }}">
+                    Team Number
+                </label>
+
+                {{ form.team_number }}
+
+                {% for error in form.team_number.errors %}
+                    <small class="error">{{ error }}</small>
+                {% endfor %}
+            </div>
+
+            <div class="buttons">
+
+                <button type="submit" class="save-btn">
+                    Save Changes
+                </button>
+
+                <a href="{% url 'employee_detail' %}?employee_id={{ employee.employee_id }}"
+                   class="cancel-btn">
+                    Cancel
+                </a>
+
+            </div>
+
+        </form>
+
+    </div>
+
+</body>
+</html>

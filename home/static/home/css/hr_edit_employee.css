@@ -1,0 +1,176 @@
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: Arial, sans-serif;
+}
+
+body {
+    background: #f3f5f9;
+    min-height: 100vh;
+    padding: 40px 15px;
+}
+
+.container {
+    width: 100%;
+    max-width: 650px;
+    margin: auto;
+    background: white;
+    padding: 30px;
+    border-radius: 12px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+}
+
+.header {
+    text-align: center;
+    margin-bottom: 25px;
+}
+
+.header h2 {
+    color: #222;
+    margin-bottom: 8px;
+}
+
+.header p {
+    color: #777;
+    font-size: 14px;
+}
+
+.employee-info {
+    background: #f3f6fc;
+    padding: 18px;
+    border-radius: 8px;
+    margin-bottom: 25px;
+}
+
+.hr-employee-photo-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    margin: 0 auto 16px;
+    overflow: hidden;
+}
+
+.hr-employee-photo,
+.hr-employee-photo-placeholder {
+    box-sizing: border-box;
+    width: min(150px, 100%);
+    height: auto;
+    aspect-ratio: 1 / 1;
+    max-width: 150px;
+    flex: 0 1 150px;
+    overflow: hidden;
+    border: 3px solid #dce3ed;
+    border-radius: 50%;
+}
+
+.hr-employee-photo {
+    display: block;
+    object-fit: cover;
+    object-position: center;
+}
+
+.hr-employee-photo-placeholder {
+    display: grid;
+    place-items: center;
+    color: #1e3a8a;
+    background: #dbeafe;
+    font-size: 42px;
+    font-weight: 700;
+}
+
+.employee-info h3 {
+    color: #222;
+    margin-bottom: 10px;
+}
+
+.employee-info p {
+    margin-top: 7px;
+    color: #555;
+}
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: bold;
+    color: #333;
+}
+
+.form-group input {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    outline: none;
+    font-size: 15px;
+}
+
+.form-group input:focus {
+    border-color: #2563eb;
+}
+
+.error {
+    display: block;
+    color: #d93025;
+    margin-top: 5px;
+}
+
+.message {
+    background: #e7f5e9;
+    color: #247a35;
+    padding: 12px;
+    margin-bottom: 18px;
+    border-radius: 6px;
+}
+
+.buttons {
+    display: flex;
+    gap: 12px;
+    margin-top: 25px;
+}
+
+.save-btn,
+.cancel-btn {
+    flex: 1;
+    padding: 13px;
+    text-align: center;
+    border: none;
+    border-radius: 6px;
+    text-decoration: none;
+    font-size: 15px;
+    cursor: pointer;
+}
+
+.save-btn {
+    background: #2563eb;
+    color: white;
+}
+
+.save-btn:hover {
+    background: #1d4ed8;
+}
+
+.cancel-btn {
+    background: #e5e7eb;
+    color: #333;
+}
+
+.cancel-btn:hover {
+    background: #d1d5db;
+}
+
+@media (max-width: 500px) {
+    .container {
+        padding: 20px;
+    }
+
+    .buttons {
+        flex-direction: column;
+    }
+}

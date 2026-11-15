@@ -1,0 +1,134 @@
+
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Set Up Manager</title>
+
+    <link rel="stylesheet"
+          href="{% static 'administration/css/login.css' %}">
+    <link rel="stylesheet" href="{% static 'home/css/password_toggle.css' %}">
+    <script defer src="{% static 'home/js/password_toggle.js' %}"></script>
+</head>
+
+<body>
+
+    <div class="login-container">
+        <div class="login-box">
+
+            <div class="admin-icon">M</div>
+
+            <h1>Set Up Manager</h1>
+            <p>Create a new manager or promote an existing employee.</p>
+
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="message">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+
+            {% if error %}
+                <div class="message">{{ error }}</div>
+            {% endif %}
+
+            <form method="POST">
+                {% csrf_token %}
+
+                <div class="input-group">
+                    <label for="employee_id">Existing Employee ID (optional)</label>
+                    <input
+                        id="employee_id"
+                        type="text"
+                        name="employee_id"
+                        value="{{ employee_id|default:'' }}"
+                        placeholder="Enter an employee ID to promote"
+                        autocomplete="off"
+                    >
+                    <small class="employee-id-help">
+                        Leave blank to create a new manager. Promoting an employee
+                        changes the ID from 1A to 1G.
+                    </small>
+                </div>
+
+                <div id="new-manager-fields" {% if employee_id %}hidden{% endif %}>
+                    <div class="input-group">
+                        <label for="full_name">Full Name</label>
+                        <input id="full_name" type="text" name="full_name" data-required>
+                    </div>
+
+                    <div class="input-group">
+                        <label for="username">Username</label>
+                        <input id="username" type="text" name="username" data-required>
+                    </div>
+
+                    <div class="input-group">
+                        <label for="email">Email</label>
+                        <input id="email" type="email" name="email" data-required>
+                    </div>
+
+                    <div class="input-group">
+                        <label for="phone">Phone</label>
+                        <input id="phone" type="text" name="phone" data-required>
+                    </div>
+
+                    <div class="input-group">
+                        <label for="address">Address</label>
+                        <input id="address" type="text" name="address" data-required>
+                    </div>
+
+                    <div class="input-group">
+                        <label for="password">Password</label>
+                        <input id="password" type="password" name="password" data-required>
+                    </div>
+
+                    <div class="input-group">
+                        <label for="confirm_password">Confirm Password</label>
+                        <input type="password"
+                               id="confirm_password"
+                               name="confirm_password"
+                               data-required>
+                    </div>
+                </div>
+
+                <button id="manager-setup-submit" type="submit">
+                    Create Manager Account
+                </button>
+            </form>
+
+            <p class="back-home">
+                <a href="{% url 'administration:admin_dashboard' %}">
+                    Back to dashboard
+                </a>
+            </p>
+
+        </div>
+    </div>
+
+    <script>
+        const employeeIdInput = document.getElementById('employee_id');
+        const newManagerFields = document.getElementById('new-manager-fields');
+        const newManagerInputs = newManagerFields.querySelectorAll('[data-required]');
+
+        function updateManagerSetupMode() {
+            const promotingEmployee = employeeIdInput.value.trim() !== '';
+            newManagerFields.hidden = promotingEmployee;
+            newManagerInputs.forEach((input) => {
+                input.disabled = promotingEmployee;
+                input.required = !promotingEmployee;
+            });
+            document.getElementById('manager-setup-submit').textContent =
+                promotingEmployee
+                    ? 'Promote Employee to Manager'
+                    : 'Create Manager Account';
+        }
+
+        employeeIdInput.addEventListener('input', updateManagerSetupMode);
+        updateManagerSetupMode();
+    </script>
+</body>
+</html>

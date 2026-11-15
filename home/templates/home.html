@@ -1,0 +1,148 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Employee Management System</title>
+
+    <link rel="stylesheet" href="{% static 'home/css/style.css' %}">
+
+</head>
+
+<body>
+
+    <!-- Navbar -->
+
+    <nav class="navbar">
+
+        <div class="logo">
+            Employee Management
+        </div>
+
+        <div class="nav-buttons">
+            <a href="{% url 'login' %}" class="nav-btn login-btn">
+                Login
+            </a>
+            <a href="{% url 'register' %}" class="nav-btn register-btn">
+                Register
+            </a>
+            <a href="{% url 'administration:admin_login' %}" class="nav-btn">
+                Administration
+            </a>
+        </div>
+
+    </nav>
+
+    {% if messages %}
+        <section class="flash-messages">
+            {% for message in messages %}
+                <p>{{ message }}</p>
+            {% endfor %}
+        </section>
+    {% endif %}
+
+
+    <!-- Hero Section -->
+
+    <section class="hero">
+
+        <div class="hero-content">
+
+            <h1>Employee Management System</h1>
+
+            <p>
+                Manage employees, departments, roles and employee
+                information easily in one place.
+            </p>
+
+            <div class="hero-buttons">
+                <a href="{% url 'login' %}" class="hero-btn login-main">
+                    Login
+                </a>
+                <a href="{% url 'register' %}" class="hero-btn register-main">
+                    Register
+                </a>
+                <a href="{% url 'administration:admin_login' %}" class="hero-btn register-main">
+                    Administration
+                </a>
+            </div>
+
+        </div>
+
+    </section>
+
+
+    <!-- Statistics -->
+
+    <section class="statistics">
+
+        <div class="stat-card">
+
+            <h2>{{ employee_count }}</h2>
+
+            <p>Total Employees</p>
+
+        </div>
+
+        <div class="department-wrapper"
+             tabindex="0"
+             role="group"
+             aria-label="{{ department_count }} departments. Focus to view department names.">
+            <div class="stat-card department-card">
+                <h2>{{ department_count }}</h2>
+                <p>Departments</p>
+            </div>
+            <div class="department-dropdown">
+                {% for department in departments %}
+                    <a href="{% url 'department_detail' department.slug %}">
+                        <span class="department-name">{{ department.name }}</span>
+                        <span class="department-employee-count">{{ department.employee_count }} Employee{{ department.employee_count|pluralize }}</span>
+                    </a>
+                {% endfor %}
+                <div class="department-dropdown-total">
+                    <span>Total Assigned Employees</span>
+                    <span>{{ department_employee_total }}</span>
+                </div>
+                <div class="department-dropdown-total">
+                    <span>Unassigned Employees</span>
+                    <span>{{ unassigned_employee_count }} Employee{{ unassigned_employee_count|pluralize }}</span>
+                </div>
+            </div>
+        </div>
+
+    </section>
+
+
+    <!-- About -->
+
+    <section class="about">
+
+        <h2>About Employee Management System</h2>
+
+        <p>
+            This system helps HR and managers manage employee
+            information, employee profiles, departments and other
+            employee details.
+        </p>
+
+    </section>
+
+    <!-- Footer -->
+
+    <footer>
+
+        <p>
+            © 2026 Employee Management System
+        </p>
+
+    </footer>
+
+</body>
+
+</html>

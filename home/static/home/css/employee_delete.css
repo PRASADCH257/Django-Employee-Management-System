@@ -1,0 +1,135 @@
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: Arial, sans-serif;
+    background: #f3f4f6;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+}
+
+.delete-container {
+    background: white;
+    width: 100%;
+    max-width: 550px;
+    padding: 35px;
+    border-radius: 10px;
+    text-align: center;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+}
+
+.warning-icon {
+    width: 65px;
+    height: 65px;
+    margin: 0 auto 20px;
+    border-radius: 50%;
+    background: #fee2e2;
+    color: #dc2626;
+    font-size: 40px;
+    font-weight: bold;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+h1 {
+    color: #1f2937;
+    margin-bottom: 12px;
+}
+
+.warning-text {
+    color: #6b7280;
+    margin-bottom: 25px;
+}
+
+.employee-details {
+    text-align: left;
+    border: 1px solid #e5e7eb;
+    padding: 20px;
+    border-radius: 7px;
+}
+
+.employee-details h3 {
+    margin-bottom: 15px;
+    color: #1f2937;
+}
+
+.detail-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 11px 0;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.detail-row span {
+    color: #6b7280;
+}
+
+.detail-row strong {
+    color: #111827;
+    text-align: right;
+    overflow-wrap: anywhere;
+}
+
+.delete-warning {
+    background: #fef2f2;
+    color: #b91c1c;
+    padding: 14px;
+    margin: 20px 0;
+    border-radius: 5px;
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+.buttons {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+    margin-top: 20px;
+}
+
+.delete-btn {
+    background: #dc2626;
+    color: white;
+    border: none;
+    padding: 13px 20px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.cancel-btn {
+    background: #6b7280;
+    color: white;
+    text-decoration: none;
+    padding: 13px 25px;
+    border-radius: 5px;
+    font-size: 14px;
+}
+
+.delete-btn:hover {
+    background: #b91c1c;
+}
+
+.cancel-btn:hover {
+    background: #4b5563;
+}
+
+@media (max-width: 500px) {
+    .delete-container {
+        padding: 20px;
+    }
+
+    .buttons {
+        flex-direction: column;
+    }
+}
+

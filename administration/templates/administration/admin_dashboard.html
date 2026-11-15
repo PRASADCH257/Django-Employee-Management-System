@@ -1,0 +1,300 @@
+
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Admin Dashboard</title>
+
+    <link rel="stylesheet"
+          href="{% static 'administration/css/dashboard.css' %}">
+    <link rel="stylesheet" href="{% static 'home/css/password_toggle.css' %}">
+    <script defer src="{% static 'home/js/password_toggle.js' %}"></script>
+</head>
+
+<body>
+
+    <!-- NAVIGATION BAR -->
+    <nav class="navbar">
+
+        <h2>Administration</h2>
+
+        <div class="nav-links">
+
+            <a href="{% url 'home' %}">Home</a>
+
+            <a href="{% url 'administration:admin_dashboard' %}">Dashboard</a>
+
+            <a href="{% url 'administration:admin_setup_manager' %}">
+                Set Up Manager
+            </a>
+
+            <a href="{% url 'register' %}">Register</a>
+
+            <a href="{% url 'administration:admin_logout' %}" class="logout">
+                Logout
+            </a>
+
+            <div class="dashboard-year-control">
+                <button type="button"
+                        class="dashboard-year-toggle"
+                        id="change-year-toggle"
+                        aria-expanded="false"
+                        aria-controls="dashboard-year-form"
+                        onclick="toggleDashboardYearForm()">
+                    Change year
+                </button>
+
+                <form method="post"
+                      class="dashboard-year-form"
+                      id="dashboard-year-form"
+                      hidden>
+                    {% csrf_token %}
+                    <label for="dashboard-year">Dashboard year</label>
+                    <select id="dashboard-year" name="year" required>
+                        {% for year in available_years %}
+                            <option value="{{ year }}"
+                                    {% if year == dashboard_year %}selected{% endif %}>
+                                {{ year }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                    <label for="year-admin-password">Admin password</label>
+                    <input id="year-admin-password"
+                           type="password"
+                           name="admin_password"
+                           autocomplete="current-password"
+                           required>
+                    <button type="submit">Confirm year</button>
+                </form>
+            </div>
+
+        </div>
+
+    </nav>
+
+
+    <main class="container">
+
+        <h1>Welcome, {{ admin.full_name }}</h1>
+
+        <p class="welcome-text">
+            Administration Dashboard · {{ dashboard_year }}
+        </p>
+
+        <!-- MESSAGES -->
+        {% if messages %}
+            {% for message in messages %}
+                <div class="message">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        {% endif %}
+
+
+        <!-- STATISTICS -->
+        <section class="stats-container">
+
+            <div class="stat-card">
+                <h3>Total Employees</h3>
+                <p>{{ employee_count }}</p>
+            </div>
+
+            <div class="stat-card">
+                <h3>Total Departments</h3>
+                <p>{{ department_count }}</p>
+            </div>
+
+        </section>
+
+
+        <!-- EMPLOYEE MANAGEMENT -->
+        <section id="employee-management">
+
+            <h2>Employee Management</h2>
+
+            <div class="management-container">
+
+                <!-- REGISTER EMPLOYEE -->
+                <div class="management-card">
+
+                    <h3>Register Employee</h3>
+
+                    <p>Create a new employee account.</p>
+
+                    <a href="{% url 'register' %}"
+                       class="action-button">
+                        Register Employee
+                    </a>
+
+                </div>
+
+
+                <!-- VIEW EMPLOYEE -->
+                <div class="management-card">
+
+                    <h3>View Employee</h3>
+
+                    <p>Search and view employee information.</p>
+
+                    <a href="#search-section"
+                       class="action-button">
+                        Search Employee
+                    </a>
+
+                </div>
+
+
+                <!-- EDIT EMPLOYEE -->
+                <div class="management-card">
+
+                    <h3>Edit Employee</h3>
+
+                    <p>Find an employee to update their details.</p>
+
+                    <a href="#search-section"
+                       class="action-button">
+                        Find Employee
+                    </a>
+
+                </div>
+
+
+                <!-- DELETE EMPLOYEE -->
+                <div class="management-card">
+
+                    <h3>Delete Employee</h3>
+
+                    <p>Find an employee and delete their account.</p>
+
+                    <a href="#search-section"
+                       class="action-button">
+                        Find Employee
+                    </a>
+
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- SEARCH EMPLOYEE -->
+        <section id="search-section" class="search-section">
+
+            <h2>Search Employee</h2>
+
+            <form method="POST"
+                  action="{% url 'administration:search_employee' %}">
+
+                {% csrf_token %}
+
+                <label for="employee_id">
+                    Employee ID
+                </label>
+
+                <input
+                    type="text"
+                    id="employee_id"
+                    name="employee_id"
+                    placeholder="Enter Employee ID"
+                    required
+                >
+
+                <div class="admin-password-section">
+                    <label for="admin_password">
+                        Administration Password
+                    </label>
+
+                    <input
+                        type="password"
+                        id="admin_password"
+                        name="admin_password"
+                        placeholder="Enter your Admin password"
+                        autocomplete="current-password"
+                        required
+                    >
+                </div>
+
+                <div class="others-section">
+                    <label class="checkbox-label" for="manager_verification">
+                        <input
+                            type="checkbox"
+                            id="manager_verification"
+                            name="manager_verification"
+                            value="yes"
+                            onchange="toggleManagerPassword()"
+                        >
+                        This account is a Manager
+                    </label>
+                </div>
+
+                <div class="password-section" id="manager-password-section" hidden>
+                    <label for="manager_password">
+                        Manager Password
+                    </label>
+
+                    <input
+                        type="password"
+                        id="manager_password"
+                        name="manager_password"
+                        placeholder="Enter the Manager's password"
+                        autocomplete="off"
+                    >
+
+                    <small>
+                        Required only when the searched account is a Manager.
+                    </small>
+                </div>
+
+                <button type="submit" class="search-button">
+                    Search Employee
+                </button>
+
+            </form>
+
+        </section>
+
+
+        <!-- FOOTER -->
+        <footer>
+
+            <p>
+                Employee Management System |
+                Administration Panel
+            </p>
+
+        </footer>
+
+    </main>
+
+    <script>
+        function toggleDashboardYearForm() {
+            const form = document.getElementById('dashboard-year-form');
+            const button = document.getElementById('change-year-toggle');
+            const isExpanded = button.getAttribute('aria-expanded') === 'true';
+            form.hidden = isExpanded;
+            button.setAttribute('aria-expanded', String(!isExpanded));
+            if (!isExpanded) {
+                document.getElementById('year-admin-password').focus();
+            }
+        }
+
+        function toggleManagerPassword() {
+            const checked = document.getElementById('manager_verification').checked;
+            const section = document.getElementById('manager-password-section');
+            const input = document.getElementById('manager_password');
+            section.hidden = !checked;
+            input.required = checked;
+            if (!checked) {
+                input.value = '';
+            }
+        }
+    </script>
+
+</body>
+</html>

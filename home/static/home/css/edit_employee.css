@@ -1,0 +1,223 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: Arial, sans-serif;
+    background: #f1f4f9;
+    padding: 40px 20px;
+}
+
+.edit-container {
+    max-width: 650px;
+    margin: auto;
+    background: white;
+    padding: 35px;
+    border-radius: 12px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+}
+
+.header {
+    text-align: center;
+    margin-bottom: 25px;
+}
+
+.header h1 {
+    color: #243b55;
+    margin-bottom: 8px;
+}
+
+.header p {
+    color: #777;
+}
+
+.employee-info {
+    background: #f1f5f9;
+    padding: 18px;
+    border-radius: 8px;
+    margin-bottom: 25px;
+}
+
+.employee-info h3 {
+    color: #1e3a8a;
+    margin-bottom: 10px;
+}
+
+.employee-info p {
+    margin-top: 8px;
+    color: #444;
+}
+
+.employee-edit-media {
+    display: flex;
+    align-items: center;
+    flex-direction: column;
+    gap: 16px;
+    text-align: center;
+}
+
+.employee-edit-photo {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    margin: 0 auto;
+    overflow: hidden;
+}
+
+.employee-photo-preview,
+.employee-photo-placeholder {
+    box-sizing: border-box;
+    width: min(150px, 100%);
+    height: auto;
+    aspect-ratio: 1 / 1;
+    max-width: 150px;
+    flex: 0 1 150px;
+    overflow: hidden;
+    border: 3px solid #dce3ed;
+    border-radius: 50%;
+}
+
+.employee-photo-preview {
+    display: block;
+    object-fit: cover;
+    object-position: center;
+}
+
+.employee-photo-placeholder {
+    display: grid;
+    place-items: center;
+    color: #1e3a8a;
+    background: #dbeafe;
+    font-size: 42px;
+    font-weight: bold;
+}
+
+.employee-info-copy {
+    min-width: 0;
+}
+
+form h2 {
+    font-size: 20px;
+    color: #243b55;
+    margin-bottom: 20px;
+}
+
+.media-edit-fields {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 18px;
+    margin-bottom: 24px;
+}
+
+.media-edit-heading {
+    grid-column: 1 / -1;
+    margin-bottom: 0;
+}
+
+.help-text {
+    display: block;
+    margin: -2px 0 8px;
+    color: #64748b;
+    font-size: 13px;
+}
+
+.form-group {
+    margin-bottom: 18px;
+}
+
+.form-group label {
+    display: block;
+    font-weight: bold;
+    margin-bottom: 8px;
+    color: #333;
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    font-size: 15px;
+    outline: none;
+}
+
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+    border-color: #2563eb;
+}
+
+.errorlist {
+    color: red;
+    margin-top: 5px;
+    list-style: none;
+    font-size: 13px;
+}
+
+.buttons {
+    display: flex;
+    gap: 15px;
+    margin-top: 25px;
+}
+
+.update-btn {
+    background: #2563eb;
+    color: white;
+    padding: 12px 22px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 15px;
+}
+
+.update-btn:hover {
+    background: #1d4ed8;
+}
+
+.cancel-btn {
+    background: #64748b;
+    color: white;
+    padding: 12px 22px;
+    text-decoration: none;
+    border-radius: 6px;
+    font-size: 15px;
+}
+
+.cancel-btn:hover {
+    background: #475569;
+}
+
+@media (max-width: 600px) {
+
+    body {
+        padding: 15px;
+    }
+
+    .edit-container {
+        padding: 20px;
+    }
+
+    .buttons {
+        flex-direction: column;
+    }
+
+    .employee-edit-media {
+        flex-direction: column;
+    }
+
+    .media-edit-fields {
+        grid-template-columns: 1fr;
+        gap: 0;
+    }
+
+    .update-btn,
+    .cancel-btn {
+        text-align: center;
+    }
+
+}

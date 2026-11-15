@@ -1,0 +1,50 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ department.name }} | Employee Management</title>
+    <link rel="stylesheet" href="{% static 'home/css/department_detail.css' %}">
+</head>
+<body>
+    <main class="page">
+        <header class="page-header">
+            <a class="back-link" href="{% url 'home' %}">&larr; Back to Home</a>
+            <p class="eyebrow">Department</p>
+            <h1>{{ department.name }}</h1>
+            <p class="description">{{ department.description }}</p>
+            <div class="employee-total">
+                <strong>{{ employee_count }}</strong>
+                employee{{ employee_count|pluralize }}
+            </div>
+        </header>
+
+        <section class="employee-section" aria-labelledby="employee-heading">
+            <h2 id="employee-heading">Department Employees</h2>
+            {% if employees %}
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th scope="col">Employee ID</th>
+                                <th scope="col">Name</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for employee in employees %}
+                                <tr>
+                                    <td>{{ employee.employee_id }}</td>
+                                    <td>{{ employee.full_name }}</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <p class="empty-state">No employees are assigned to this department yet.</p>
+            {% endif %}
+        </section>
+    </main>
+</body>
+</html>

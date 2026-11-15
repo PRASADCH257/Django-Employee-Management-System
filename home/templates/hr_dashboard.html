@@ -1,0 +1,210 @@
+ 
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>HR Dashboard</title>
+
+    <link rel="stylesheet" href="{% static 'home/css/hr_dashboard.css' %}">
+</head>
+
+<body>
+
+<div class="dashboard">
+
+    <!-- Sidebar -->
+    <aside class="sidebar">
+
+        <h2>EMS</h2>
+        <p class="subtitle">HR Management</p>
+
+        <nav>
+            <a href="{% url 'hr_dashboard' %}" class="active">
+                Dashboard
+            </a>
+
+            <a href="{% url 'employee_detail' %}">
+                Employee Details
+            </a>
+
+            <a href="#employees">
+                Employees
+            </a>
+
+            <a href="#departments">
+                Departments
+            </a>
+
+            <a href="#profile">
+                HR Profile
+            </a>
+
+            <a href="{% url 'home' %}">
+                Home
+            </a>
+        </nav>
+
+        <a href="{% url 'logout' %}" class="logout">
+            Logout
+        </a>
+
+    </aside>
+
+
+    <!-- Main Content -->
+    <main class="main-content">
+
+        <!-- Topbar -->
+        <header class="topbar">
+
+            <div>
+                <h1>HR Dashboard</h1>
+                <p>Welcome back, {{ employee.full_name }}!</p>
+            </div>
+
+            <div class="hr-info">
+
+                <div class="avatar">
+                    {{ employee.full_name|first|upper }}
+                </div>
+
+                <span>{{ employee.full_name }}</span>
+
+            </div>
+
+        </header>
+
+        {% if messages %}
+            {% for message in messages %}
+                <p class="success-message">{{ message }}</p>
+            {% endfor %}
+        {% endif %}
+
+
+        <!-- Statistics -->
+        <section class="stats" aria-label="Dashboard statistics">
+
+            <div class="stat-card">
+                <h3>Total Employees</h3>
+                <h1>{{ total_employees }}</h1>
+                <p>Registered employees</p>
+            </div>
+
+            <details class="stat-card department-stat-card" id="departments">
+                <summary class="department-stat-summary">
+                    <h3>Departments</h3>
+                    <h1>{{ total_departments }}</h1>
+                    <p>Click to view department names</p>
+                </summary>
+                <div class="department-name-list">
+                    {% for department in departments %}
+                        <a href="{% url 'department_detail' department.slug %}">
+                            {{ department.name }}
+                        </a>
+                    {% endfor %}
+                </div>
+            </details>
+
+            <div class="stat-card">
+                <h3>Active Employees</h3>
+                <h1>{{ active_employees }}</h1>
+                <p>Currently active</p>
+            </div>
+
+        </section>
+
+        <!-- Employee Management -->
+        <section class="employee-section" id="employees">
+
+            <div class="section-header">
+
+                <h2>Employee Management</h2>
+
+                <a href="{% url 'employee_detail' %}" class="add-btn">
+                    View Employee Details
+                </a>
+
+            </div>
+
+            <div class="management-cards">
+
+                <div class="management-card">
+
+                    <h3>View Employees</h3>
+
+                    <p>
+                        Search and view registered employee professional details.
+                    </p>
+
+                    <a href="{% url 'employee_detail' %}">
+                        View Details
+                    </a>
+
+                </div>
+
+                <div class="management-card">
+
+                    <h3>Employee Information</h3>
+
+                    <p>
+                        Check employee role, salary, project and team number.
+                    </p>
+
+                    <a href="{% url 'employee_detail' %}">
+                        Search Employee
+                    </a>
+
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- HR Profile -->
+        <section class="employee-section" id="profile">
+
+            <div class="section-header">
+                <h2>HR Profile</h2>
+            </div>
+
+            <div class="management-card">
+
+                {% if employee.photo %}
+                    <img src="{{ employee.photo.url }}"
+                         alt="HR Profile Photo"
+                         width="100">
+                {% endif %}
+
+                <p><strong>Employee ID:</strong> {{ employee.employee_id }}</p>
+
+                <p><strong>Name:</strong> {{ employee.full_name }}</p>
+
+                <p><strong>Email:</strong> {{ employee.email }}</p>
+
+                <p><strong>Phone:</strong> {{ employee.phone }}</p>
+
+                <p><strong>Role:</strong> {{ employee.role }}</p>
+
+                <p><strong>Account Type:</strong> {{ employee.get_account_type_display }}</p>
+
+            </div>
+
+        </section>
+
+
+        <!-- Footer -->
+        <footer>
+            <p>© 2026 Employee Management System</p>
+        </footer>
+
+    </main>
+
+</div>
+
+</body>
+</html>

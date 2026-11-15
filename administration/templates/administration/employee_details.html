@@ -1,0 +1,108 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Employee Details</title>
+    <link rel="stylesheet" href="{% static 'administration/css/dashboard.css' %}">
+    <link rel="stylesheet" href="{% static 'administration/css/employee_details.css' %}">
+</head>
+<body>
+    <main class="container employee-details-page">
+        <nav class="navbar">
+            <h2>Administration</h2>
+            <div class="nav-links">
+                <a href="{% url 'home' %}">Home</a>
+                <a href="{% url 'administration:admin_dashboard' %}">Dashboard</a>
+                <a href="{% url 'administration:admin_logout' %}">Logout</a>
+            </div>
+        </nav>
+
+        <h1>Employee Details</h1>
+        <p class="details-intro">Review personal, professional, and account information.</p>
+
+        <article class="employee-card">
+            <header class="employee-summary">
+                {% if employee.photo %}
+                    <img src="{{ employee.photo.url }}"
+                         alt="{{ employee.full_name }}"
+                         class="employee-photo">
+                {% else %}
+                    <div class="employee-photo-placeholder" aria-hidden="true">
+                        {{ employee.full_name|first|upper }}
+                    </div>
+                {% endif %}
+                <div class="summary-copy">
+                    <span class="eyebrow">Employee profile</span>
+                    <h2>{{ employee.full_name }}</h2>
+                    <p>{{ employee.role|default:"Role not assigned" }}</p>
+                </div>
+                <div class="employee-id">
+                    <span>Employee ID</span>
+                    <strong>{{ employee.employee_id }}</strong>
+                </div>
+            </header>
+
+            <section class="detail-section">
+                <h3>Personal Details</h3>
+                <div class="details-grid">
+                    <div class="detail-item"><span>Full Name</span><strong>{{ employee.full_name }}</strong></div>
+                    <div class="detail-item"><span>Employee ID</span><strong>{{ employee.employee_id }}</strong></div>
+                    <div class="detail-item"><span>Phone</span><strong>{{ employee.phone|default:"Not provided" }}</strong></div>
+                    <div class="detail-item"><span>Address</span><strong>{{ employee.address|default:"Not provided" }}</strong></div>
+                </div>
+            </section>
+
+            <section class="detail-section">
+                <h3>Professional Details</h3>
+                <div class="details-grid">
+                    <div class="detail-item"><span>Role</span><strong>{{ employee.role|default:"Not assigned" }}</strong></div>
+                    <div class="detail-item"><span>Department</span><strong>{{ employee.get_department_display|default:"Not assigned" }}</strong></div>
+                    <div class="detail-item">
+                        <span>Salary</span>
+                        <strong>{% if employee.salary %}₹{{ employee.salary }}{% else %}Not assigned{% endif %}</strong>
+                    </div>
+                    <div class="detail-item"><span>Current Project</span><strong>{{ employee.current_project|default:"Not assigned" }}</strong></div>
+                    <div class="detail-item"><span>Team Number</span><strong>{{ employee.team_number|default:"Not assigned" }}</strong></div>
+                </div>
+            </section>
+
+            <section class="detail-section">
+                <h3>Account Details</h3>
+                <div class="details-grid">
+                    <div class="detail-item"><span>Username</span><strong>{{ employee.username }}</strong></div>
+                    <div class="detail-item"><span>Email</span><strong>{{ employee.email }}</strong></div>
+                    <div class="detail-item"><span>Account Type</span><strong>{{ employee.get_account_type_display }}</strong></div>
+                </div>
+            </section>
+
+            {% if employee.resume %}
+                <section class="detail-section">
+                    <h3>Documents</h3>
+                    <a class="document-link" href="{{ employee.resume.url }}" target="_blank" rel="noopener">
+                        View Resume
+                    </a>
+                </section>
+            {% endif %}
+
+            <footer class="employee-actions">
+                <a class="edit-button"
+                   href="{% url 'administration:admin_edit_employee' employee.id %}">
+                    Edit Employee
+                </a>
+                <form method="post"
+                      action="{% url 'administration:admin_delete_employee' employee.id %}"
+                      onsubmit="return confirm('Delete this employee account?');">
+                    {% csrf_token %}
+                    <button class="delete-button" type="submit">Delete Employee</button>
+                </form>
+            </footer>
+        </article>
+
+        <p class="back-link">
+            <a href="{% url 'administration:admin_dashboard' %}">Back to dashboard</a>
+        </p>
+    </main>
+</body>
+</html>
