@@ -6,6 +6,7 @@ Django settings for emp_management project.
 from pathlib import Path
 import os
 import secrets
+import dj_database_url
 
 from django.core.exceptions import ImproperlyConfigured
 
@@ -47,7 +48,9 @@ DEBUG = os.environ.get('DJANGO_DEBUG', 'true').strip().lower() in {
     'yes',
     'on',
 }
+
 SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', '').strip()
+
 if not SECRET_KEY:
     if not DEBUG:
         raise ImproperlyConfigured(
@@ -55,11 +58,13 @@ if not SECRET_KEY:
         )
     SECRET_KEY = secrets.token_urlsafe(50)
 
+
 ALLOWED_HOSTS = [
     host.strip()
     for host in os.environ.get('DJANGO_ALLOWED_HOSTS', '').split(',')
     if host.strip()
 ]
+
 if DEBUG and not ALLOWED_HOSTS:
     ALLOWED_HOSTS = ['localhost', '127.0.0.1', '[::1]']
 elif not DEBUG and not ALLOWED_HOSTS:
@@ -84,6 +89,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -115,14 +121,24 @@ TEMPLATES = [
 WSGI_APPLICATION = 'emp_management.wsgi.application'
 
 
-# Database
+# Database: PostgreSQL on Render, SQLite locally
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+DATABASE_URL = os.environ.get('DATABASE_URL')
+
+if DATABASE_URL:
+    DATABASES = {
+        'default': dj_database_url.config(
+            conn_max_age=600,
+            conn_health_checks=True,
+        )
     }
-}
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
+    }
 
 
 # Password validation
@@ -156,7 +172,18 @@ USE_TZ = True
 
 # Static files
 
-STATIC_URL = 'static/'
+STATIC_URL = '/static/'
+
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+
+STORAGES = {
+    'default': {
+        'BACKEND': 'django.core.files.storage.FileSystemStorage',
+    },
+    'staticfiles': {
+        'BACKEND': 'whitenoise.storage.CompressedManifestStaticFilesStorage',
+    },
+}
 
 
 # Gmail SMTP Email Configuration
@@ -173,6 +200,7 @@ EMAIL_USE_TLS = True
 # Put them in the environment or in a project .env file:
 # DJANGO_GMAIL_ADDRESS=you@gmail.com
 # DJANGO_GMAIL_APP_PASSWORD=abcdefghijklmnop
+
 EMAIL_HOST_USER = _mail_setting('DJANGO_GMAIL_ADDRESS')
 
 EMAIL_HOST_PASSWORD = _mail_setting('DJANGO_GMAIL_APP_PASSWORD')
@@ -190,3 +218,24 @@ EMAIL_TIMEOUT = 10
 MEDIA_URL = '/media/'
 
 MEDIA_ROOT = BASE_DIR / 'media'
+
+
+# CSRF and HTTPS settings
+
+CSRF_TRUSTED_ORIGINS = [
+    origin.strip()
+    for origin in os.environ.get(
+        'DJANGO_CSRF_TRUSTED_ORIGINS', ''
+    ).split(',')
+    if origin.strip()
+]
+
+SECURE_PROXY_SSL_HEADER = (
+    'HTTP_X_FORWARDED_PROTO',
+    'https',
+)
+
+if not DEBUG:
+    SECURE_SSL_REDIRECT = True
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
