@@ -36,7 +36,7 @@
                 <div class="summary-copy">
                     <span class="eyebrow">Employee profile</span>
                     <h2>{{ employee.full_name }}</h2>
-                    <p>{{ employee.role|default:"Role not assigned" }}</p>
+                    <p>{{ employee.display_role }}</p>
                 </div>
                 <div class="employee-id">
                     <span>Employee ID</span>
@@ -57,7 +57,7 @@
             <section class="detail-section">
                 <h3>Professional Details</h3>
                 <div class="details-grid">
-                    <div class="detail-item"><span>Role</span><strong>{{ employee.role|default:"Not assigned" }}</strong></div>
+                    <div class="detail-item"><span>Role</span><strong>{{ employee.display_role }}</strong></div>
                     <div class="detail-item"><span>Department</span><strong>{{ employee.get_department_display|default:"Not assigned" }}</strong></div>
                     <div class="detail-item">
                         <span>Salary</span>

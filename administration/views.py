@@ -11,8 +11,6 @@ from django.contrib.auth.hashers import (
     check_password
 )
 
-from django.db.models import Q
-
 from django.views.decorators.http import require_POST
 
 from home.models import Employee, EmployeeIdConfiguration
@@ -45,17 +43,11 @@ def get_admin(request):
 # ==========================================
 
 def get_employee_count():
-
-    return Employee.objects.filter(
-        account_type__iexact='EMPLOYEE'
-    ).count()
+    return Employee.objects.count()
 
 
 def _is_manager_account(employee):
-    return (
-        (employee.account_type or '').strip().upper() == 'MANAGER'
-        or (employee.role or '').strip().upper() == 'MANAGER'
-    )
+    return (employee.account_type or '').strip().upper() == 'MANAGER'
 
 
 def _get_verified_employee(request, employee_id):
@@ -90,18 +82,13 @@ def admin_login(request):
 
         admin = Employee.objects.filter(
             username__iexact=username,
-        ).filter(
-            Q(account_type__iexact='ADMIN') | Q(role__iexact='ADMIN')
+            account_type__iexact='ADMIN',
         ).first()
 
         if admin and check_password(
             password,
             admin.password
         ):
-            if (admin.account_type or '').upper() != 'ADMIN':
-                admin.account_type = 'ADMIN'
-                admin.save(update_fields=['account_type'])
-
             # Change session key without deleting
             # other application session information
             request.session.cycle_key()
@@ -388,7 +375,6 @@ def admin_edit_employee(request, id):
             instance=employee
         )
         if employee.pk == admin.pk:
-            form.fields['account_type'].disabled = True
             form.fields['employee_id'].disabled = True
 
         if form.is_valid():
@@ -417,7 +403,6 @@ def admin_edit_employee(request, id):
             instance=employee
         )
         if employee.pk == admin.pk:
-            form.fields['account_type'].disabled = True
             form.fields['employee_id'].disabled = True
 
     return render(
@@ -528,11 +513,9 @@ def admin_setup_manager(request):
                     else:
                         employee.employee_id = manager_id
                         employee.account_type = 'MANAGER'
-                        employee.role = 'MANAGER'
                         employee.save(update_fields=[
                             'employee_id',
                             'account_type',
-                            'role',
                         ])
                         messages.success(
                             request,
@@ -624,7 +607,6 @@ def admin_setup_manager(request):
                 address=address,
                 password=make_password(password),
                 account_type='MANAGER',
-                role='MANAGER'
             )
 
             messages.success(

@@ -6,6 +6,22 @@ from django.db import models
 from .department_assignment import resolve_employee_department
 
 
+ROLE_CHOICES = (
+    ('HR', 'HR'),
+    ('EMPLOYEE', 'Employee'),
+    ('ADMINISTRATION', 'Administration'),
+)
+
+
+def normalize_role(value):
+    normalized = ' '.join((value or '').strip().upper().split())
+    if normalized in {'ADMIN', 'ADMINISTRATION'}:
+        return 'ADMINISTRATION'
+    if normalized == 'HR':
+        return 'HR'
+    return 'EMPLOYEE'
+
+
 class EmployeeIdConfiguration(models.Model):
     year = models.PositiveSmallIntegerField(default=date.today().year)
 
@@ -31,6 +47,7 @@ class Employee(models.Model):
         ('MANAGER', 'Manager'),
         ('EMPLOYEE', 'Employee'),
     ]
+    ROLE_CHOICES = ROLE_CHOICES
 
     # ==========================================
     # EMPLOYEE ID
@@ -205,6 +222,10 @@ class Employee(models.Model):
     @property
     def is_department_counted(self):
         return resolve_employee_department(self) is not None
+
+    @property
+    def display_role(self):
+        return dict(ROLE_CHOICES)[normalize_role(self.role)]
 
     @property
     def display_department(self):

@@ -1,7 +1,8 @@
 
 from django import forms
 from django.core.exceptions import ValidationError
-from home.models import Employee
+
+from home.models import Employee, ROLE_CHOICES, normalize_role
 
 
 def _validate_upload(upload, label, extensions, max_size):
@@ -22,12 +23,13 @@ def _validate_upload(upload, label, extensions, max_size):
         )
 
 
-def _validate_non_privileged_role(role):
-    if (role or '').strip().upper() in {'ADMIN', 'MANAGER', 'HR'}:
-        raise ValidationError(
-            'Reserved account roles can only be assigned by an administrator.'
-        )
-    return role
+def _role_field(allow_administration):
+    choices = ROLE_CHOICES if allow_administration else ROLE_CHOICES[:2]
+    return forms.ChoiceField(
+        choices=choices,
+        label='Role',
+        widget=forms.Select(attrs={'class': 'form-control'}),
+    )
 
 
 class EmployeeRegistrationForm(forms.ModelForm):
@@ -46,6 +48,7 @@ class EmployeeRegistrationForm(forms.ModelForm):
             'email',
             'phone',
             'address',
+            'department',
             'photo',
             'resume',
         ]
@@ -72,6 +75,7 @@ class EmployeeRegistrationForm(forms.ModelForm):
 
 
 class AdminEmployeeEditForm(forms.ModelForm):
+    role = _role_field(allow_administration=True)
 
     class Meta:
         model = Employee
@@ -87,13 +91,29 @@ class AdminEmployeeEditForm(forms.ModelForm):
             'resume',
             'document',
             'video',
-            'account_type',
             'salary',
             'role',
             'department',
             'current_project',
             'team_number',
         ]
+        labels = {
+            'employee_id': 'Employee ID',
+            'full_name': 'Full Name',
+            'username': 'Username',
+            'email': 'Email',
+            'phone': 'Phone',
+            'address': 'Address',
+            'photo': 'Profile Photo',
+            'resume': 'Resume',
+            'document': 'Document',
+            'video': 'Video',
+            'salary': 'Salary',
+            'role': 'Role',
+            'department': 'Department',
+            'current_project': 'Current Project',
+            'team_number': 'Team Number',
+        }
 
         widgets = {
             'employee_id': forms.TextInput(attrs={
@@ -146,20 +166,11 @@ class AdminEmployeeEditForm(forms.ModelForm):
                 'accept': '.mp4,.mov,.webm'
             }),
 
-            'account_type': forms.Select(attrs={
-                'class': 'form-control'
-            }),
-
             'salary': forms.NumberInput(attrs={
                 'class': 'form-control',
                 'step': '1',
                 'min': '0',
                 'placeholder': 'e.g. 100000'
-            }),
-
-            'role': forms.TextInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'Enter employee position'
             }),
 
             'department': forms.Select(attrs={
@@ -179,14 +190,7 @@ class AdminEmployeeEditForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-
-        self.fields['account_type'].choices = [
-            ('EMPLOYEE', 'Employee'),
-            ('HR', 'HR'),
-            ('MANAGER', 'Manager'),
-        ]
-        if self.instance.account_type == 'ADMIN':
-            self.fields['account_type'].choices.append(('ADMIN', 'Admin'))
+        self.initial['role'] = normalize_role(self.instance.role)
 
         self.fields['photo'].help_text = (
             'JPEG, PNG, or WebP. Maximum size: 5 MB.'
@@ -295,23 +299,12 @@ class ManagerEmployeeEditForm(AdminEmployeeEditForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields['employee_id'].disabled = True
-        self.fields['account_type'].choices = [
-            ('EMPLOYEE', 'Employee'),
-            ('HR', 'HR'),
-        ]
-        if self.instance.account_type not in {'EMPLOYEE', 'HR'}:
-            self.fields['account_type'].choices.append(
-                (
-                    self.instance.account_type,
-                    self.instance.get_account_type_display(),
-                )
-            )
-
-    def clean_role(self):
-        return _validate_non_privileged_role(self.cleaned_data.get('role'))
+        self.fields['role'].choices = ROLE_CHOICES[:2]
 
 
 class EmployeeProfessionalEditForm(forms.ModelForm):
+    role = _role_field(allow_administration=False)
+
     class Meta:
         model = Employee
         fields = [
@@ -321,12 +314,18 @@ class EmployeeProfessionalEditForm(forms.ModelForm):
             'current_project',
             'team_number',
         ]
+        labels = {
+            'salary': 'Salary',
+            'role': 'Role',
+            'department': 'Department',
+            'current_project': 'Current Project',
+            'team_number': 'Team Number',
+        }
         widgets = {
             'salary': forms.NumberInput(attrs={
                 'class': 'form-control',
                 'step': '0.01',
             }),
-            'role': forms.TextInput(attrs={'class': 'form-control'}),
             'department': forms.Select(attrs={'class': 'form-control'}),
             'current_project': forms.TextInput(attrs={
                 'class': 'form-control',
@@ -334,5 +333,6 @@ class EmployeeProfessionalEditForm(forms.ModelForm):
             'team_number': forms.TextInput(attrs={'class': 'form-control'}),
         }
 
-    def clean_role(self):
-        return _validate_non_privileged_role(self.cleaned_data.get('role'))
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.initial['role'] = normalize_role(self.instance.role)

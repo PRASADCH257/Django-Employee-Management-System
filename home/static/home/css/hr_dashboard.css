@@ -297,6 +297,20 @@ html {
     object-fit: cover;
 }
 
+.management-card .profile-photo-placeholder {
+    display: flex;
+    width: 100px;
+    height: 100px;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 18px;
+    border-radius: 50%;
+    background: #dbeafe;
+    color: #1d4ed8;
+    font-size: 32px;
+    font-weight: 700;
+}
+
 .management-card p + p {
     margin-top: 10px;
 }

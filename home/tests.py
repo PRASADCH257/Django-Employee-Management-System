@@ -14,7 +14,7 @@ from django.urls import reverse
 from django.utils import timezone
 from PIL import Image
 
-from .models import Employee, EmployeeIdConfiguration
+from .models import Employee, EmployeeIdConfiguration, normalize_role
 
 
 class EmployeePortalTests(TestCase):
@@ -123,6 +123,7 @@ class EmployeePortalTests(TestCase):
         response = self.client.get(reverse('hr_dashboard'))
 
         self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'class="profile-photo-placeholder"')
         self.assertContains(response, 'href="#departments"')
         for department_name in (
             'HR (Human Resources)',
@@ -143,7 +144,7 @@ class EmployeePortalTests(TestCase):
                 for department in response.context['departments']
             },
             {
-                'HR': 0,
+                'HR': 1,
                 'DEVELOPMENT': 1,
                 'TESTING_QA': 0,
                 'DATABASE_ADMINISTRATION': 0,
@@ -247,27 +248,27 @@ class EmployeePortalTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.context['department_count'], 5)
-        self.assertEqual(response.context['department_employee_total'], 7)
-        self.assertEqual(response.context['unassigned_employee_count'], 0)
+        self.assertEqual(response.context['department_employee_total'], 8)
+        self.assertEqual(response.context['unassigned_employee_count'], 1)
         self.assertEqual(
             {
                 department['name']: department['employee_count']
                 for department in response.context['departments']
             },
             {
-                'HR': 1,
-                'Development': 3,
+                'HR': 2,
+                'Development': 2,
                 'Testing': 1,
-                'Database Administration': 1,
+                'Database Administration': 2,
                 'IT Support': 1,
             },
         )
+        self.assertContains(response, '2 Employees')
         self.assertContains(response, '1 Employee')
-        self.assertContains(response, '3 Employees')
-        self.assertContains(response, '<span>7</span>', html=True)
+        self.assertContains(response, '<span>8</span>', html=True)
         self.assertContains(response, 'Total Assigned Employees')
 
-    def test_role_infers_department_only_when_department_is_blank(self):
+    def test_role_does_not_infer_department_without_assignment(self):
         developer = Employee.objects.create(
             full_name='Role Inferred Developer',
             username='roleinferreddeveloper',
@@ -300,22 +301,22 @@ class EmployeePortalTests(TestCase):
         response = self.client.get(reverse('home'))
 
         self.assertEqual(response.context['employee_count'], 3)
-        self.assertEqual(response.context['department_employee_total'], 2)
-        self.assertEqual(response.context['unassigned_employee_count'], 1)
+        self.assertEqual(response.context['department_employee_total'], 1)
+        self.assertEqual(response.context['unassigned_employee_count'], 2)
         counts = {
             department['name']: department['employee_count']
             for department in response.context['departments']
         }
-        self.assertEqual(counts['Development'], 1)
+        self.assertEqual(counts['Development'], 0)
         self.assertEqual(counts['HR'], 1)
 
         detail_response = self.client.get(
             reverse('department_detail', args=['development'])
         )
-        self.assertEqual(detail_response.context['employee_count'], 1)
-        self.assertContains(detail_response, developer.full_name)
+        self.assertEqual(detail_response.context['employee_count'], 0)
+        self.assertNotContains(detail_response, developer.full_name)
 
-    def test_role_and_department_changes_recalculate_counts_and_delete(self):
+    def test_role_and_department_fields_update_counts_independently(self):
         employee = Employee.objects.create(
             full_name='Changing Assignment Employee',
             username='changingassignmentemployee',
@@ -351,16 +352,11 @@ class EmployeePortalTests(TestCase):
             'Database Administration': 0,
             'IT Support': 0,
         }
-        assert_assignment(
-            {**empty_counts, 'Development': 1},
-            1,
-            1,
-            0,
-        )
+        assert_assignment(empty_counts, 1, 0, 1)
 
         employee.role = 'Tester'
         employee.save(update_fields=['role'])
-        assert_assignment({**empty_counts, 'Testing': 1}, 1, 1, 0)
+        assert_assignment(empty_counts, 1, 0, 1)
 
         employee.department = 'HR'
         employee.save(update_fields=['department'])
@@ -376,7 +372,7 @@ class EmployeePortalTests(TestCase):
 
         employee.role = 'HR'
         employee.save(update_fields=['role'])
-        assert_assignment({**empty_counts, 'HR': 1}, 1, 1, 0)
+        assert_assignment(empty_counts, 1, 0, 1)
 
         employee.role = ''
         employee.save(update_fields=['role'])
@@ -385,156 +381,78 @@ class EmployeePortalTests(TestCase):
         employee.delete()
         assert_assignment(empty_counts, 0, 0, 0)
 
-    def test_exact_role_mapping_and_account_type_exclusions(self):
-        role_mapping = {
-            'HR': ('HR', 'HR Executive', 'HR Officer'),
-            'DEVELOPMENT': (
-                'Developer',
-                'Python Developer',
-                'Software Developer',
-                'Backend Developer',
-                'Frontend Developer',
-                'Full Stack Developer',
-                'Software Engineer',
-            ),
-            'TESTING_QA': (
-                'Tester',
-                'QA',
-                'QA Engineer',
-                'Software Tester',
-                'Test Engineer',
-            ),
-            'DATABASE_ADMINISTRATION': (
-                'Admin',
-                'DBA',
-                'Database Administrator',
-                'Database Administration',
-                'SQL Developer',
-                'Database Engineer',
-                'Database Admin',
-                'DB Admin',
-                'DB Administrator',
-            ),
-            'IT_SUPPORT': (
-                'IT Support',
-                'IT Technician',
-                'Technical Support',
-                'System Administrator',
-            ),
-        }
+    def test_all_account_types_and_explicit_department_counts(self):
         base_kwargs = {
             'password': 'employee-password',
             'phone': '1234567890',
             'address': 'Employee address',
         }
-        role_index = 0
-        for role, department_code in role_mapping.items():
-            for title in department_code:
-                role_value = title
-                if title == 'Admin':
-                    role_value = 'ADMIN'
-                elif title == 'DB Admin':
-                    role_value = '  dB   AdMiN  '
-                employee = Employee.objects.create(
-                    full_name=f'Role Mapping Employee {role_index}',
-                    username=f'role_mapping_{role_index}',
-                    email=f'role_mapping_{role_index}@example.com',
-                    role=role_value,
-                    **base_kwargs,
-                )
-                if title == 'Admin':
-                    database_admin_employee = employee
-                role_index += 1
-
-        explicit_department_employee = Employee.objects.create(
-            full_name='Explicit Department Wins',
-            username='explicitdepartmentwins',
-            email='explicitdepartmentwins@example.com',
-            role='ADMIN',
+        hr_account = Employee.objects.create(
+            full_name='HR Account',
+            username='hraccount',
+            email='hraccount@example.com',
+            account_type='HR',
+            role='HR',
+            **base_kwargs,
+        )
+        admin_account = Employee.objects.create(
+            full_name='Administration Account',
+            username='adminaccount',
+            email='adminaccount@example.com',
+            account_type='ADMIN',
+            role='ADMINISTRATION',
             department='HR',
             **base_kwargs,
         )
-        department_only_employee = Employee.objects.create(
-            full_name='Department Without Role',
-            username='departmentwithoutrole',
-            email='departmentwithoutrole@example.com',
+        manager_account = Employee.objects.create(
+            full_name='Manager Account',
+            username='manageraccount',
+            email='manageraccount@example.com',
+            account_type='MANAGER',
+            role='EMPLOYEE',
+            department='DEVELOPMENT',
+            **base_kwargs,
+        )
+        employee_account = Employee.objects.create(
+            full_name='Employee Account',
+            username='employeeaccount',
+            email='employeeaccount@example.com',
+            account_type='EMPLOYEE',
+            role='HR',
             department='TESTING_QA',
             **base_kwargs,
         )
-        Employee.objects.create(
-            full_name='Unrecognized Role',
-            username='unrecognizedrole',
-            email='unrecognizedrole@example.com',
-            role='Operations Specialist',
-            **base_kwargs,
-        )
-        Employee.objects.create(
-            full_name='No Role Or Department',
-            username='noroleordepartment',
-            email='noroleordepartment@example.com',
-            **base_kwargs,
-        )
-        for account_type in ('HR', 'ADMIN', 'MANAGER'):
-            Employee.objects.create(
-                full_name=f'{account_type} Account',
-                username=f'{account_type.lower()}_excluded',
-                email=f'{account_type.lower()}_excluded@example.com',
-                role=(
-                    'ADMIN' if account_type == 'ADMIN'
-                    else 'Python Developer'
-                ),
-                department=(
-                    '' if account_type == 'ADMIN' else 'DEVELOPMENT'
-                ),
-                account_type=account_type,
-                **base_kwargs,
-            )
 
         response = self.client.get(reverse('home'))
         counts = {
             department['name']: department['employee_count']
             for department in response.context['departments']
         }
-        self.assertEqual(response.context['employee_count'], 32)
+        self.assertEqual(response.context['employee_count'], 4)
         self.assertEqual(counts, {
-            'HR': 4,
-            'Development': 7,
-            'Testing': 6,
-            'Database Administration': 9,
-            'IT Support': 4,
+            'HR': 1,
+            'Development': 1,
+            'Testing': 1,
+            'Database Administration': 0,
+            'IT Support': 0,
         })
-        self.assertEqual(response.context['department_employee_total'], 30)
-        self.assertEqual(response.context['unassigned_employee_count'], 2)
+        self.assertEqual(response.context['department_employee_total'], 3)
+        self.assertEqual(response.context['unassigned_employee_count'], 1)
         self.assertEqual(
             response.context['employee_count'],
             response.context['department_employee_total']
             + response.context['unassigned_employee_count'],
         )
-        self.assertTrue(explicit_department_employee.is_department_counted)
+        self.assertFalse(hr_account.is_department_counted)
+        self.assertTrue(admin_account.is_department_counted)
+        self.assertTrue(manager_account.is_department_counted)
+        self.assertTrue(employee_account.is_department_counted)
 
-        human_resources_page = self.client.get(
+        department_page = self.client.get(
             reverse('department_detail', args=['hr'])
         )
-        self.assertContains(
-            human_resources_page,
-            explicit_department_employee.full_name,
-        )
-        database_page = self.client.get(
-            reverse('department_detail', args=['database-administration'])
-        )
-        self.assertContains(database_page, database_admin_employee.full_name)
-        self.assertNotContains(
-            database_page,
-            explicit_department_employee.full_name,
-        )
-        self.assertNotContains(database_page, 'HR Account')
-        self.assertNotContains(database_page, 'ADMIN Account')
-        self.assertNotContains(database_page, 'MANAGER Account')
-        testing_page = self.client.get(
-            reverse('department_detail', args=['testing'])
-        )
-        self.assertContains(testing_page, department_only_employee.full_name)
-        self.assertNotContains(testing_page, 'Unrecognized Role')
+        self.assertContains(department_page, admin_account.full_name)
+        self.assertNotContains(department_page, hr_account.full_name)
 
     def test_manager_ids_use_manager_prefix_and_sequence_from_101(self):
         manager = Employee.objects.create(
@@ -738,7 +656,7 @@ class EmployeePortalTests(TestCase):
         response = self.client.get(reverse('register'))
         self.assertEqual(response.status_code, 200)
         self.assertNotContains(response, 'name="role"')
-        self.assertNotContains(response, 'name="department"')
+        self.assertContains(response, 'name="department"')
 
         response = self.client.post(
             reverse('register'),
@@ -756,7 +674,7 @@ class EmployeePortalTests(TestCase):
         )
         self.assertRedirects(response, reverse('login'))
         employee = Employee.objects.get(username='testemployee')
-        self.assertEqual(employee.department, '')
+        self.assertEqual(employee.department, 'DEVELOPMENT')
         self.assertIsNone(employee.role)
         self.assertEqual(employee.account_type, 'EMPLOYEE')
         self.assertTrue(
@@ -835,6 +753,114 @@ class EmployeePortalTests(TestCase):
         employee = Employee.objects.get(username='melissa-2026')
         self.assertTrue(check_password('melissa-2026', employee.password))
 
+    def test_registration_department_is_included_in_homepage_counts(self):
+        response = self.client.post(
+            reverse('register'),
+            {
+                'full_name': 'Development Registrant',
+                'username': 'development-registrant',
+                'email': 'development-registrant@example.com',
+                'phone': '1234567891',
+                'address': 'Example address',
+                'department': 'DEVELOPMENT',
+                'password': 'A-registration-password-482!',
+                'confirm_password': 'A-registration-password-482!',
+            },
+        )
+
+        self.assertRedirects(response, reverse('login'))
+        employee = Employee.objects.get(username='development-registrant')
+        self.assertEqual(employee.account_type, 'EMPLOYEE')
+        self.assertEqual(employee.department, 'DEVELOPMENT')
+
+        home_response = self.client.get(reverse('home'))
+        self.assertEqual(home_response.context['employee_count'], 1)
+        self.assertEqual(
+            home_response.context['department_employee_total'],
+            1,
+        )
+        self.assertEqual(
+            home_response.context['unassigned_employee_count'],
+            0,
+        )
+
+    def test_home_counts_all_accounts_through_registration_assignment_and_delete(self):
+        account_data = {
+            'password': make_password('A-unique-password-482!'),
+            'phone': '1234567890',
+            'address': 'Example address',
+        }
+        Employee.objects.create(
+            full_name='Existing Employee',
+            username='allcounts_employee',
+            email='allcounts_employee@example.com',
+            **account_data,
+        )
+        Employee.objects.create(
+            full_name='Existing Admin',
+            username='allcounts_admin',
+            email='allcounts_admin@example.com',
+            account_type='ADMIN',
+            role='ADMIN',
+            **account_data,
+        )
+        Employee.objects.create(
+            full_name='Existing Manager',
+            username='allcounts_manager',
+            email='allcounts_manager@example.com',
+            account_type='MANAGER',
+            role='MANAGER',
+            **account_data,
+        )
+
+        def assert_home_counts(total, development, testing, assigned, unassigned):
+            response = self.client.get(reverse('home'))
+            counts = {
+                department['name']: department['employee_count']
+                for department in response.context['departments']
+            }
+            self.assertEqual(response.context['employee_count'], total)
+            self.assertEqual(counts['Development'], development)
+            self.assertEqual(counts['Testing'], testing)
+            self.assertEqual(
+                response.context['department_employee_total'],
+                assigned,
+            )
+            self.assertEqual(
+                response.context['unassigned_employee_count'],
+                unassigned,
+            )
+            self.assertEqual(total, assigned + unassigned)
+
+        assert_home_counts(3, 0, 0, 0, 3)
+
+        response = self.client.post(
+            reverse('register'),
+            {
+                'full_name': 'New Counted Employee',
+                'username': 'new-counted-employee',
+                'email': 'new-counted-employee@example.com',
+                'phone': '1234567891',
+                'address': 'New address',
+                'password': 'A-registration-password-482!',
+                'confirm_password': 'A-registration-password-482!',
+            },
+        )
+        self.assertRedirects(response, reverse('login'))
+        employee = Employee.objects.get(username='new-counted-employee')
+        assert_home_counts(4, 0, 0, 0, 4)
+
+        employee.department = 'DEVELOPMENT'
+        employee.save(update_fields=['department'])
+        assert_home_counts(4, 1, 0, 1, 3)
+
+        employee.department = 'TESTING_QA'
+        employee.save(update_fields=['department'])
+        assert_home_counts(4, 0, 1, 1, 3)
+
+        employee.delete()
+        assert_home_counts(3, 0, 0, 0, 3)
+
     def test_hr_and_manager_can_assign_employee_department(self):
         manager = Employee.objects.create(
             full_name='Department Manager',
@@ -875,9 +901,9 @@ class EmployeePortalTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'name="department"')
         self.assertContains(response, 'Development')
-        self.assertContains(response, 'class="employee-photo-placeholder"')
-        self.assertContains(response, 'class="employee-edit-photo"')
-        self.assertContains(response, 'home/css/edit_employee.css')
+        self.assertContains(response, 'class="profile-image-placeholder"')
+        self.assertContains(response, 'class="profile-photo-container"')
+        self.assertContains(response, 'home/css/edit_employee.')
         self.assertContains(response, 'name="photo"')
         self.assertContains(response, 'name="resume"')
         self.assertContains(response, 'name="document"')
@@ -894,7 +920,7 @@ class EmployeePortalTests(TestCase):
                 'phone': employee.phone,
                 'address': employee.address,
                 'account_type': 'EMPLOYEE',
-                'role': 'Software Engineer',
+                'role': 'EMPLOYEE',
                 'department': 'DEVELOPMENT',
                 'current_project': '',
                 'team_number': '',
@@ -905,7 +931,7 @@ class EmployeePortalTests(TestCase):
         employee.refresh_from_db()
         self.assertEqual(employee.department, 'DEVELOPMENT')
         self.assertEqual(employee.account_type, 'EMPLOYEE')
-        self.assertEqual(employee.role, 'Software Engineer')
+        self.assertEqual(employee.role, 'EMPLOYEE')
 
         response = self.client.get(reverse('home'))
         self.assertEqual(
@@ -928,13 +954,13 @@ class EmployeePortalTests(TestCase):
         self.assertContains(response, 'Testing')
         self.assertContains(response, 'class="hr-employee-photo-container"')
         self.assertContains(response, 'class="hr-employee-photo-placeholder"')
-        self.assertContains(response, 'home/css/hr_edit_employee.css')
+        self.assertContains(response, 'home/css/hr_edit_employee.')
 
         response = self.client.post(
             reverse('hr_edit_employee', args=[employee.pk]),
             {
                 'salary': '',
-                'role': 'Software Engineer',
+                'role': 'EMPLOYEE',
                 'department': 'TESTING_QA',
                 'current_project': '',
                 'team_number': '',
@@ -947,7 +973,7 @@ class EmployeePortalTests(TestCase):
         employee.refresh_from_db()
         self.assertEqual(employee.department, 'TESTING_QA')
         self.assertEqual(employee.account_type, 'EMPLOYEE')
-        self.assertEqual(employee.role, 'Software Engineer')
+        self.assertEqual(employee.role, 'EMPLOYEE')
 
         response = self.client.get(reverse('home'))
         department_counts = {
@@ -991,7 +1017,7 @@ class EmployeePortalTests(TestCase):
                 'phone': employee.phone,
                 'address': employee.address,
                 'account_type': 'ADMIN',
-                'role': 'ADMIN',
+                'role': 'ADMINISTRATION',
                 'department': 'DEVELOPMENT',
                 'salary': '',
                 'current_project': '',
@@ -1020,7 +1046,7 @@ class EmployeePortalTests(TestCase):
             reverse('hr_edit_employee', args=[employee.pk]),
             {
                 'salary': '',
-                'role': 'ADMIN',
+                'role': 'ADMINISTRATION',
                 'department': 'DEVELOPMENT',
                 'current_project': '',
                 'team_number': '',
@@ -1031,7 +1057,7 @@ class EmployeePortalTests(TestCase):
         self.assertEqual(employee.account_type, 'EMPLOYEE')
         self.assertEqual(employee.role, 'Software Engineer')
 
-    def test_department_counts_support_role_fallback_and_department_without_role(self):
+    def test_department_counts_use_department_field_not_role(self):
         employee_data = {
             'password': 'employee-password',
             'phone': '1234567890',
@@ -1085,43 +1111,42 @@ class EmployeePortalTests(TestCase):
                 assigned_total + response.context['unassigned_employee_count'],
             )
 
-        assert_counts(1, 2, 3, 4)
+        assert_counts(1, 1, 2, 4)
 
         assigned_employee.department = 'TESTING_QA'
         assigned_employee.save(update_fields=['department'])
-        assert_counts(0, 3, 3, 4)
+        assert_counts(0, 2, 2, 4)
 
         assigned_employee.role = ''
         assigned_employee.save(update_fields=['role'])
-        assert_counts(0, 3, 3, 4)
+        assert_counts(0, 2, 2, 4)
 
         assigned_employee.role = 'Developer'
         assigned_employee.department = ''
         assigned_employee.save(update_fields=['role', 'department'])
-        assert_counts(1, 2, 3, 4)
+        assert_counts(0, 1, 1, 4)
 
         assigned_employee.department = 'DEVELOPMENT'
         assigned_employee.save(update_fields=['department'])
-        assert_counts(1, 2, 3, 4)
+        assert_counts(1, 1, 2, 4)
 
         assigned_employee.delete()
-        assert_counts(0, 2, 2, 3)
+        assert_counts(0, 1, 1, 3)
 
     def test_automatic_department_counting_business_logic(self):
         """
         Verify automatic department employee counting specifications:
-        - Explicit departments take priority over recognized role mappings.
-        - A recognized role can assign an employee when Department is blank.
+        - Department assignment is independent of Role.
         - Explicit department alone is sufficient, even when Role is blank.
-        - Only account_type == 'EMPLOYEE' is counted.
+        - All account types are counted.
         - All 5 departments: HR, Development, Testing, Database Administration, IT Support.
-        - Case 1: New employee with role & dept -> count increases.
-        - Case 2: Existing employee assigned dept -> count increases.
+        - Case 1: New employee with a department -> count increases.
+        - Role changes do not change department counts.
         - Case 3: Department change -> old dept -1, new dept +1.
         - Role removal leaves explicit department assignment intact.
-        - Department removal falls back to a recognized role.
+        - Department removal makes the account unassigned.
         - Case 6: Employee deletion -> dept count -1, total count -1.
-        - Non-employee accounts (Admin, HR, Manager) excluded from department counts.
+        - Explicit assignments count for Admin, HR and Manager accounts.
         - No employee counted twice.
         """
         base_kwargs = {
@@ -1155,7 +1180,7 @@ class EmployeePortalTests(TestCase):
         self.assertEqual(res.context['department_employee_total'], 1)
         self.assertEqual(res.context['employee_count'], 1)
 
-        # Role-only employees use the role mapping.
+        # A role without a department does not imply a department assignment.
         role_only = Employee.objects.create(
             full_name='Role Only Bob',
             username='bob_role',
@@ -1176,7 +1201,7 @@ class EmployeePortalTests(TestCase):
             **base_kwargs,
         )
         # Employees with neither field remain unassigned.
-        neither = Employee.objects.create(
+        Employee.objects.create(
             full_name='Neither Dave',
             username='dave_neither',
             email='dave@example.com',
@@ -1186,7 +1211,7 @@ class EmployeePortalTests(TestCase):
             **base_kwargs,
         )
         # A blank role does not prevent an explicit department assignment.
-        ws_role = Employee.objects.create(
+        Employee.objects.create(
             full_name='Whitespace Role',
             username='ws_role',
             email='ws_role@example.com',
@@ -1195,7 +1220,7 @@ class EmployeePortalTests(TestCase):
             account_type='EMPLOYEE',
             **base_kwargs,
         )
-        ws_dept = Employee.objects.create(
+        Employee.objects.create(
             full_name='Whitespace Dept',
             username='ws_dept',
             email='ws_dept@example.com',
@@ -1204,8 +1229,8 @@ class EmployeePortalTests(TestCase):
             account_type='EMPLOYEE',
             **base_kwargs,
         )
-        # Non-employee account types (Admin, HR, Manager) must not be counted in departments
-        admin_acc = Employee.objects.create(
+        # Explicit department assignments count for every account type.
+        Employee.objects.create(
             full_name='Admin User',
             username='admin_acc',
             email='admin_acc@example.com',
@@ -1214,7 +1239,7 @@ class EmployeePortalTests(TestCase):
             account_type='ADMIN',
             **base_kwargs,
         )
-        manager_acc = Employee.objects.create(
+        Employee.objects.create(
             full_name='Manager User',
             username='manager_acc',
             email='manager_acc@example.com',
@@ -1223,7 +1248,7 @@ class EmployeePortalTests(TestCase):
             account_type='MANAGER',
             **base_kwargs,
         )
-        hr_acc = Employee.objects.create(
+        Employee.objects.create(
             full_name='HR User',
             username='hr_acc',
             email='hr_acc@example.com',
@@ -1233,28 +1258,28 @@ class EmployeePortalTests(TestCase):
             **base_kwargs,
         )
 
-        # QA Engineer maps to Testing; HR on an explicit department still counts.
+        # All account types with explicit department assignments are counted.
         res = self.client.get(reverse('home'))
         counts = {d['name']: d['employee_count'] for d in res.context['departments']}
-        self.assertEqual(counts['Development'], 1)
-        self.assertEqual(counts['Testing'], 2)
-        self.assertEqual(counts['HR'], 1)
+        self.assertEqual(counts['Development'], 2)
+        self.assertEqual(counts['Testing'], 1)
+        self.assertEqual(counts['HR'], 2)
         self.assertEqual(counts['Database Administration'], 0)
-        self.assertEqual(counts['IT Support'], 0)
-        self.assertEqual(res.context['department_employee_total'], 4)
-        # Total EMPLOYEE count: dev_emp, role_only, dept_only, neither, ws_role, ws_dept = 6
-        self.assertEqual(res.context['employee_count'], 6)
+        self.assertEqual(counts['IT Support'], 1)
+        self.assertEqual(res.context['department_employee_total'], 6)
+        self.assertEqual(res.context['employee_count'], 9)
+        self.assertEqual(res.context['unassigned_employee_count'], 3)
 
         # Case 2: Department Assignment
-        # When role_only is assigned a department, Testing count increases automatically
+        # Assigning a department updates counts even though the role is separate.
         role_only.department = 'TESTING_QA'
         role_only.save(update_fields=['department'])
         res = self.client.get(reverse('home'))
         counts = {d['name']: d['employee_count'] for d in res.context['departments']}
-        self.assertEqual(counts['Development'], 1)
+        self.assertEqual(counts['Development'], 2)
         self.assertEqual(counts['Testing'], 2)
-        self.assertEqual(counts['HR'], 1)
-        self.assertEqual(res.context['department_employee_total'], 4)
+        self.assertEqual(counts['HR'], 2)
+        self.assertEqual(res.context['department_employee_total'], 7)
 
         # Case 3: Department Change
         # When an employee moves from Development to Testing:
@@ -1263,10 +1288,10 @@ class EmployeePortalTests(TestCase):
         dev_emp.save(update_fields=['department'])
         res = self.client.get(reverse('home'))
         counts = {d['name']: d['employee_count'] for d in res.context['departments']}
-        self.assertEqual(counts['Development'], 0)
+        self.assertEqual(counts['Development'], 1)
         self.assertEqual(counts['Testing'], 3)
-        self.assertEqual(counts['HR'], 1)
-        self.assertEqual(res.context['department_employee_total'], 4)
+        self.assertEqual(counts['HR'], 2)
+        self.assertEqual(res.context['department_employee_total'], 7)
 
         # Case 4: Role removal does not erase an explicit department assignment.
         dev_emp.role = ''
@@ -1274,17 +1299,17 @@ class EmployeePortalTests(TestCase):
         res = self.client.get(reverse('home'))
         counts = {d['name']: d['employee_count'] for d in res.context['departments']}
         self.assertEqual(counts['Testing'], 3)
-        self.assertEqual(counts['HR'], 1)
-        self.assertEqual(res.context['department_employee_total'], 4)
+        self.assertEqual(counts['HR'], 2)
+        self.assertEqual(res.context['department_employee_total'], 7)
 
-        # Case 5: Removing Department falls back to the recognized Role.
+        # Case 5: Removing Department returns the account to Unassigned.
         role_only.department = ''
         role_only.save(update_fields=['department'])
         res = self.client.get(reverse('home'))
         counts = {d['name']: d['employee_count'] for d in res.context['departments']}
-        self.assertEqual(counts['Testing'], 3)
-        self.assertEqual(counts['HR'], 1)
-        self.assertEqual(res.context['department_employee_total'], 4)
+        self.assertEqual(counts['Testing'], 2)
+        self.assertEqual(counts['HR'], 2)
+        self.assertEqual(res.context['department_employee_total'], 6)
 
         # Assign employees to all 5 departments to test all departments
         dev_emp.role = 'Frontend Dev'
@@ -1308,7 +1333,7 @@ class EmployeePortalTests(TestCase):
             account_type='EMPLOYEE',
             **base_kwargs,
         )
-        it_emp = Employee.objects.create(
+        Employee.objects.create(
             full_name='IT Tech Frank',
             username='frank_it',
             email='frank@example.com',
@@ -1320,18 +1345,17 @@ class EmployeePortalTests(TestCase):
 
         res = self.client.get(reverse('home'))
         counts = {d['name']: d['employee_count'] for d in res.context['departments']}
-        self.assertEqual(counts['Development'], 1)
+        self.assertEqual(counts['Development'], 2)
         self.assertEqual(counts['Testing'], 1)
-        self.assertEqual(counts['HR'], 2)
+        self.assertEqual(counts['HR'], 3)
         self.assertEqual(counts['Database Administration'], 1)
-        self.assertEqual(counts['IT Support'], 1)
-        self.assertEqual(res.context['department_employee_total'], 6)
-        # Total employees: 6 earlier + 2 new = 8
-        self.assertEqual(res.context['employee_count'], 8)
+        self.assertEqual(counts['IT Support'], 2)
+        self.assertEqual(res.context['department_employee_total'], 9)
+        self.assertEqual(res.context['employee_count'], 11)
 
         # Verify department_detail pages reflect dynamic counts
         hr_detail = self.client.get(reverse('department_detail', args=['hr']))
-        self.assertEqual(hr_detail.context['employee_count'], 2)
+        self.assertEqual(hr_detail.context['employee_count'], 3)
         self.assertContains(hr_detail, dept_only.full_name)
 
         # Case 6: Employee Deletion
@@ -1340,8 +1364,8 @@ class EmployeePortalTests(TestCase):
         res = self.client.get(reverse('home'))
         counts = {d['name']: d['employee_count'] for d in res.context['departments']}
         self.assertEqual(counts['Database Administration'], 0)
-        self.assertEqual(res.context['department_employee_total'], 5)
-        self.assertEqual(res.context['employee_count'], 7)
+        self.assertEqual(res.context['department_employee_total'], 8)
+        self.assertEqual(res.context['employee_count'], 10)
 
     def test_login_page_prompts_again_and_uses_entered_employee_credentials(self):
         first_employee = Employee.objects.create(
@@ -1411,7 +1435,7 @@ class EmployeePortalTests(TestCase):
             self.assertEqual(self.client.get(reverse(route)).status_code, 200)
             self.client.get(reverse('logout'))
 
-    def test_manager_can_view_edit_and_delete_admin_accounts(self):
+    def test_manager_cannot_edit_or_delete_administration_accounts(self):
         manager = Employee.objects.create(
             full_name='Account Manager',
             username='accountmanager',
@@ -1420,7 +1444,7 @@ class EmployeePortalTests(TestCase):
             phone='1234567890',
             address='Manager address',
             account_type='MANAGER',
-            role='MANAGER',
+            role='EMPLOYEE',
         )
         admin = Employee.objects.create(
             full_name='Dashboard Admin',
@@ -1430,7 +1454,7 @@ class EmployeePortalTests(TestCase):
             phone='0987654321',
             address='Admin address',
             account_type='ADMIN',
-            role='ADMIN',
+            role='EMPLOYEE',
         )
         session = self.client.session
         session['home_employee_id'] = manager.pk
@@ -1441,11 +1465,11 @@ class EmployeePortalTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, admin.full_name)
         self.assertContains(response, admin.email)
-        self.assertContains(
+        self.assertNotContains(
             response,
             reverse('edit_employee', args=[admin.pk]),
         )
-        self.assertContains(
+        self.assertNotContains(
             response,
             reverse('delete_employee', args=[admin.employee_id]),
         )
@@ -1460,37 +1484,24 @@ class EmployeePortalTests(TestCase):
         )
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, admin.full_name)
-        self.assertContains(
+        self.assertNotContains(
             response,
             reverse('edit_employee', args=[admin.pk]),
         )
 
-        response = self.client.post(
+        response = self.client.get(
             reverse('edit_employee', args=[admin.pk]),
-            {
-                'full_name': 'Updated Admin',
-                'username': 'updatedadmin',
-                'email': 'updatedadmin@example.com',
-                'phone': '1112223333',
-                'address': 'Updated admin address',
-                'account_type': 'ADMIN',
-                'salary': '100000',
-                'role': 'System Administrator',
-                'current_project': 'Admin Console',
-                'team_number': 'Leadership',
-            },
         )
         self.assertRedirects(response, reverse('manager_dashboard'))
         admin.refresh_from_db()
-        self.assertEqual(admin.full_name, 'Updated Admin')
+        self.assertEqual(admin.full_name, 'Dashboard Admin')
         self.assertEqual(admin.account_type, 'ADMIN')
-        self.assertEqual(str(admin.salary), '100000.00')
 
         response = self.client.post(
             reverse('delete_employee', args=[admin.employee_id]),
         )
-        self.assertRedirects(response, reverse('manager_dashboard'))
-        self.assertFalse(Employee.objects.filter(pk=admin.pk).exists())
+        self.assertEqual(response.status_code, 404)
+        self.assertTrue(Employee.objects.filter(pk=admin.pk).exists())
 
 
 class AdministrationPortalTests(TestCase):
@@ -1520,15 +1531,65 @@ class AdministrationPortalTests(TestCase):
             'email': employee.email,
             'phone': employee.phone,
             'address': employee.address,
-            'account_type': employee.account_type,
             'salary': employee.salary or '',
-            'role': employee.role or '',
+            'role': normalize_role(employee.role),
             'department': employee.department,
             'current_project': employee.current_project or '',
             'team_number': employee.team_number or '',
         }
         data.update(updates)
         return data
+
+    def test_admin_delete_updates_counts_for_each_account_type(self):
+        accounts = []
+        for index, (account_type, department) in enumerate((
+            ('EMPLOYEE', 'HR'),
+            ('MANAGER', 'DEVELOPMENT'),
+            ('HR', 'TESTING_QA'),
+            ('ADMIN', 'DATABASE_ADMINISTRATION'),
+        )):
+            accounts.append(Employee.objects.create(
+                full_name=f'Deletable {account_type} {index}',
+                username=f'deletable_{account_type.lower()}_{index}',
+                email=f'deletable_{account_type.lower()}_{index}@example.com',
+                password=make_password('A-deletable-account-password-482!'),
+                phone='1234567890',
+                address='Account address',
+                account_type=account_type,
+                role='ADMINISTRATION' if account_type == 'ADMIN' else 'EMPLOYEE',
+                department=department,
+            ))
+
+        for deleted_count, employee in enumerate(accounts, start=1):
+            with self.subTest(account_type=employee.account_type):
+                self._select_employee_for_admin(employee)
+                response = self.client.post(
+                    reverse(
+                        'administration:admin_delete_employee',
+                        args=[employee.pk],
+                    )
+                )
+                self.assertRedirects(
+                    response,
+                    reverse('administration:admin_dashboard'),
+                )
+                self.assertFalse(
+                    Employee.objects.filter(pk=employee.pk).exists()
+                )
+
+                home_response = self.client.get(reverse('home'))
+                self.assertEqual(
+                    home_response.context['employee_count'],
+                    5 - deleted_count,
+                )
+                self.assertEqual(
+                    home_response.context['department_employee_total'],
+                    4 - deleted_count,
+                )
+                self.assertEqual(
+                    home_response.context['unassigned_employee_count'],
+                    1,
+                )
 
     def test_admin_can_update_all_employee_details_and_replace_files(self):
         employee = Employee.objects.create(
@@ -1580,7 +1641,7 @@ class AdministrationPortalTests(TestCase):
             address='Updated address',
             account_type='MANAGER',
             salary='95000.50',
-            role='Engineering Lead',
+            role='ADMINISTRATION',
             department='DEVELOPMENT',
             current_project='New Project',
             team_number='Team 9',
@@ -1606,9 +1667,9 @@ class AdministrationPortalTests(TestCase):
                 self.assertEqual(employee.email, 'updatedemployee@example.com')
                 self.assertEqual(employee.phone, '2222222222')
                 self.assertEqual(employee.address, 'Updated address')
-                self.assertEqual(employee.account_type, 'MANAGER')
+                self.assertEqual(employee.account_type, 'EMPLOYEE')
                 self.assertEqual(str(employee.salary), '95000.50')
-                self.assertEqual(employee.role, 'Engineering Lead')
+                self.assertEqual(employee.role, 'ADMINISTRATION')
                 self.assertEqual(employee.department, 'DEVELOPMENT')
                 self.assertEqual(employee.current_project, 'New Project')
                 self.assertEqual(employee.team_number, 'Team 9')
@@ -1701,12 +1762,23 @@ class AdministrationPortalTests(TestCase):
             args=[employee.pk],
         )
 
+        response = self.client.get(edit_url)
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, 'name="account_type"')
+        self.assertNotIn('account_type', response.context['form'].fields)
+
         response = self.client.post(
             edit_url,
-            self._employee_edit_data(employee, account_type='ADMIN'),
+            self._employee_edit_data(
+                employee,
+                account_type='ADMIN',
+                role='EMPLOYEE',
+            ),
         )
-        self.assertEqual(response.status_code, 200)
-        self.assertIn('account_type', response.context['form'].errors)
+        self.assertRedirects(
+            response,
+            reverse('administration:admin_employee_details'),
+        )
         self.assertEqual(
             Employee.objects.get(pk=employee.pk).account_type,
             'EMPLOYEE',
@@ -1761,6 +1833,27 @@ class AdministrationPortalTests(TestCase):
         )
 
     def test_admin_login_and_dashboard_links(self):
+        Employee.objects.create(
+            full_name='Dashboard Manager',
+            username='dashboardmanager',
+            email='dashboardmanager@example.com',
+            password=make_password('A-manager-password-482!'),
+            phone='1111111111',
+            address='Manager address',
+            account_type='MANAGER',
+            role='EMPLOYEE',
+        )
+        Employee.objects.create(
+            full_name='Dashboard HR',
+            username='dashboardhr',
+            email='dashboardhr@example.com',
+            password=make_password('A-hr-password-482!'),
+            phone='2222222222',
+            address='HR address',
+            account_type='HR',
+            role='HR',
+        )
+
         response = self.client.get(
             reverse('administration:admin_login')
         )
@@ -1783,6 +1876,7 @@ class AdministrationPortalTests(TestCase):
             reverse('administration:admin_dashboard')
         )
         self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context['employee_count'], 3)
         self.assertContains(
             response,
             reverse('administration:search_employee'),
@@ -2237,37 +2331,35 @@ class AdministrationPortalTests(TestCase):
             reverse('administration:admin_login'),
         )
 
-    def test_legacy_admin_role_can_sign_in_by_username_and_password(self):
-        legacy_admin = Employee.objects.create(
-            full_name='Legacy Admin',
-            username='legacyadmin',
-            email='legacyadmin@example.com',
+    def test_administration_role_does_not_grant_admin_access(self):
+        employee = Employee.objects.create(
+            full_name='Administration Role Employee',
+            username='administrationroleemployee',
+            email='administrationroleemployee@example.com',
             password=make_password('A-legacy-admin-password-482!'),
             phone='1234567890',
-            address='Admin address',
+            address='Employee address',
             account_type='EMPLOYEE',
-            role='ADMIN',
+            role='ADMINISTRATION',
         )
 
         response = self.client.post(
             reverse('administration:admin_login'),
             {
-                'username': legacy_admin.username,
+                'username': employee.username,
                 'password': 'A-legacy-admin-password-482!',
             },
         )
 
-        self.assertRedirects(
-            response,
-            reverse('administration:admin_dashboard'),
-        )
-        legacy_admin.refresh_from_db()
-        self.assertEqual(legacy_admin.account_type, 'ADMIN')
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn('administration_admin_id', self.client.session)
+        employee.refresh_from_db()
+        self.assertEqual(employee.account_type, 'EMPLOYEE')
         self.assertEqual(
             self.client.get(
                 reverse('administration:admin_dashboard')
-            ).status_code,
-            200,
+            ).url,
+            reverse('administration:admin_login'),
         )
 
     def test_manager_setup_assigns_manager_id_from_101(self):
@@ -2325,7 +2417,7 @@ class AdministrationPortalTests(TestCase):
         )
         employee.refresh_from_db()
         self.assertEqual(employee.account_type, 'MANAGER')
-        self.assertEqual(employee.role, 'MANAGER')
+        self.assertEqual(employee.role, 'Developer')
         self.assertEqual(
             employee.employee_id,
             original_employee_id.replace('MQ1A', 'MQ1G'),
@@ -2536,7 +2628,10 @@ class AdministrationPortalTests(TestCase):
         session['administration_admin_id'] = self.admin.pk
         session.save()
 
-        for employee, new_type in ((manager, 'HR'), (hr, 'MANAGER')):
+        for employee, new_role, account_type in (
+            (manager, 'HR', 'MANAGER'),
+            (hr, 'EMPLOYEE', 'HR'),
+        ):
             with self.subTest(employee=employee.username):
                 session = self.client.session
                 session['admin_selected_employee_id'] = employee.pk
@@ -2548,6 +2643,11 @@ class AdministrationPortalTests(TestCase):
                     )
                 )
                 self.assertEqual(response.status_code, 200)
+                self.assertNotContains(response, 'name="account_type"')
+                self.assertNotIn(
+                    'account_type',
+                    response.context['form'].fields,
+                )
                 self.assertContains(response, 'class="profile-image-placeholder"')
                 self.assertContains(response, 'name="photo"')
                 self.assertContains(response, 'name="resume"')
@@ -2555,11 +2655,11 @@ class AdministrationPortalTests(TestCase):
                 self.assertContains(response, 'name="video"')
                 self.assertContains(
                     response,
-                    'administration/css/admin_edit_employee.css',
+                    'administration/css/admin_edit_employee.',
                 )
                 self.assertContains(
                     response,
-                    'administration/js/admin_edit_employee.js',
+                    'administration/js/admin_edit_employee.',
                 )
                 self.assertNotContains(response, 'View current resume')
                 self.assertNotContains(response, 'Currently:')
@@ -2574,9 +2674,8 @@ class AdministrationPortalTests(TestCase):
                         'email': employee.email,
                         'phone': employee.phone,
                         'address': employee.address,
-                        'account_type': new_type,
                         'salary': '100000',
-                        'role': new_type,
+                        'role': new_role,
                         'current_project': 'Admin-managed project',
                         'team_number': 'Team 2',
                     },
@@ -2591,7 +2690,8 @@ class AdministrationPortalTests(TestCase):
                     reverse('administration:admin_employee_details'),
                 )
                 employee.refresh_from_db()
-                self.assertEqual(employee.account_type, new_type)
+                self.assertEqual(employee.account_type, account_type)
+                self.assertEqual(employee.role, new_role)
                 self.assertEqual(str(employee.salary), '100000.00')
 
         session = self.client.session
@@ -2604,7 +2704,7 @@ class AdministrationPortalTests(TestCase):
             )
         )
         self.assertEqual(response.status_code, 200)
-        self.assertTrue(response.context['form'].fields['account_type'].disabled)
+        self.assertNotIn('account_type', response.context['form'].fields)
         self.assertTrue(response.context['form'].fields['employee_id'].disabled)
 
         response = self.client.post(
@@ -2619,9 +2719,8 @@ class AdministrationPortalTests(TestCase):
                 'email': self.admin.email,
                 'phone': '3333333333',
                 'address': 'Updated admin address',
-                'account_type': 'EMPLOYEE',
                 'salary': '100000',
-                'role': 'ADMIN',
+                'role': 'ADMINISTRATION',
                 'current_project': 'Admin Console',
                 'team_number': 'Leadership',
             },
@@ -2633,6 +2732,7 @@ class AdministrationPortalTests(TestCase):
         self.admin.refresh_from_db()
         self.assertEqual(self.admin.full_name, 'Updated Site Admin')
         self.assertEqual(self.admin.account_type, 'ADMIN')
+        self.assertEqual(self.admin.role, 'ADMINISTRATION')
 
     def test_home_always_shows_login_register_and_administration(self):
         response = self.client.get(reverse('home'))

@@ -1,35 +1,50 @@
 .admin-edit-page {
-    box-sizing: border-box;
-    max-width: 1250px;
-    overflow-x: hidden;
+    max-width: 900px;
+    padding-bottom: 36px;
 }
 
-.admin-edit-page form {
-    box-sizing: border-box;
-    width: 100%;
-    max-width: 100%;
-    min-width: 0;
+.edit-header {
+    margin-bottom: 24px;
+    text-align: center;
 }
 
-.admin-edit-page .profile-image-container {
+.edit-header h1 {
+    margin-bottom: 8px;
+}
+
+.edit-header p,
+.admin-edit-page .help-text {
+    color: #64748b;
+}
+
+.admin-edit-page .edit-section {
+    margin-bottom: 22px;
+    padding: 22px;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    background: #fff;
+}
+
+.admin-edit-page .edit-section h2 {
+    margin: 0 0 18px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #e8edf5;
+    color: #243b70;
+    font-size: 19px;
+}
+
+.admin-edit-page .profile-photo-container {
     display: flex;
-    align-items: center;
     justify-content: center;
-    width: 100%;
-    max-width: 100%;
-    margin: 20px auto 24px;
-    overflow: hidden;
+    margin: 0 0 20px;
 }
 
 .admin-edit-page .profile-image,
 .admin-edit-page .profile-image-placeholder {
-    display: block;
-    box-sizing: border-box;
-    width: min(150px, 100%);
-    height: auto;
-    aspect-ratio: 1;
-    max-width: 150px;
-    flex: 0 1 150px;
+    display: grid;
+    width: 132px;
+    height: 132px;
+    place-items: center;
     overflow: hidden;
     border: 3px solid #dce3ed;
     border-radius: 50%;
@@ -41,42 +56,116 @@
 }
 
 .admin-edit-page .profile-image-placeholder {
-    display: grid;
-    place-items: center;
-    color: #1e3a8a;
     background: #dbeafe;
-    font-size: 42px;
+    color: #1e3a8a;
+    font-size: 40px;
     font-weight: 700;
 }
 
-.admin-edit-page .media-edit-fields {
+.admin-edit-page .field-grid {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 18px;
-    width: 100%;
-    margin-bottom: 24px;
+    gap: 16px;
 }
 
-.admin-edit-page .media-edit-heading {
-    grid-column: 1 / -1;
+.admin-edit-page .form-group {
+    min-width: 0;
     margin-bottom: 0;
 }
 
-.admin-edit-page .media-edit-fields .form-group {
-    min-width: 0;
+.admin-edit-page .wide-field {
+    grid-column: 1 / -1;
 }
 
-.admin-edit-page input[type="file"] {
-    box-sizing: border-box;
-    max-width: 100%;
-    min-width: 0;
-}
-
-.admin-edit-page .help-text {
+.admin-edit-page .form-group label {
     display: block;
-    margin: -2px 0 8px;
-    color: #64748b;
+    margin-bottom: 7px;
+}
+
+.admin-edit-page .form-group input,
+.admin-edit-page .form-group select,
+.admin-edit-page .form-group textarea {
+    box-sizing: border-box;
+    width: 100%;
+    min-height: 42px;
+    padding: 10px 12px;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    background: #fff;
+    color: #1e293b;
+    font: inherit;
+}
+
+.admin-edit-page .form-group textarea {
+    min-height: 96px;
+    resize: vertical;
+}
+
+.admin-edit-page .form-group input:focus,
+.admin-edit-page .form-group select:focus,
+.admin-edit-page .form-group textarea:focus {
+    border-color: #315de8;
+    outline: 3px solid rgba(49, 93, 232, 0.12);
+}
+
+.admin-edit-page .form-group input[type="file"] {
+    min-width: 0;
+}
+
+.admin-edit-page .help-text,
+.admin-edit-page .current-file {
+    display: block;
+    margin: 0 0 8px;
     font-size: 13px;
+}
+
+.admin-edit-page .current-file a {
+    color: #315de8;
+}
+
+.admin-edit-page .field-error {
+    margin: 6px 0 0;
+    color: #b91c1c;
+    font-size: 13px;
+}
+
+.admin-edit-page .edit-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    margin-top: 24px;
+}
+
+.admin-edit-page .update-button,
+.admin-edit-page .cancel-button {
+    display: inline-block;
+    min-width: 130px;
+    padding: 12px 18px;
+    border: 0;
+    border-radius: 6px;
+    font: inherit;
+    font-weight: 600;
+    text-align: center;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.admin-edit-page .update-button {
+    background: #315de8;
+    color: #fff;
+}
+
+.admin-edit-page .update-button:hover {
+    background: #244bd0;
+}
+
+.admin-edit-page .cancel-button {
+    background: #e2e8f0;
+    color: #334155;
+}
+
+.admin-edit-page .cancel-button:hover {
+    background: #cbd5e1;
 }
 
 @media (max-width: 700px) {
@@ -84,8 +173,19 @@
         width: 94%;
     }
 
-    .admin-edit-page .media-edit-fields {
-        grid-template-columns: minmax(0, 1fr);
-        gap: 0;
+    .admin-edit-page .edit-section {
+        padding: 17px 13px;
+    }
+
+    .admin-edit-page .field-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .admin-edit-page .wide-field {
+        grid-column: auto;
+    }
+
+    .admin-edit-page .edit-actions {
+        flex-direction: column;
     }
 }

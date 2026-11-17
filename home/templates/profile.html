@@ -34,7 +34,7 @@
 
             <h1>{{ employee.full_name }}</h1>
 
-            <p>{{ employee.role|default:"Employee" }}</p>
+            <p>{{ employee.display_role }}</p>
 
         </div>
 
@@ -104,7 +104,7 @@
 
                 <div class="detail">
                     <label>Role</label>
-                    <p>{{ employee.role|default:"Not Assigned" }}</p>
+                    <p>{{ employee.display_role }}</p>
                 </div>
 
                 <div class="detail">

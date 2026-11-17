@@ -78,7 +78,7 @@ HOMEPAGE_DEPARTMENT_NAMES = {
 
 
 def _department_employees_query():
-    return Employee.objects.filter(account_type__iexact='EMPLOYEE')
+    return Employee.objects.all()
 
 
 def _department_cards():
@@ -112,24 +112,15 @@ def get_current_employee(request):
 
 
 def _is_admin(employee):
-    return (
-        (employee.account_type or '').upper() == 'ADMIN'
-        or (employee.role or '').upper() == 'ADMIN'
-    )
+    return (employee.account_type or '').upper() == 'ADMIN'
 
 
 def _is_manager(employee):
-    return not _is_admin(employee) and (
-        (employee.account_type or '').upper() == 'MANAGER'
-        or (employee.role or '').upper() == 'MANAGER'
-    )
+    return (employee.account_type or '').upper() == 'MANAGER'
 
 
 def _is_hr(employee):
-    return not _is_admin(employee) and (
-        (employee.account_type or '').upper() == 'HR'
-        or (employee.role or '').upper() == 'HR'
-    )
+    return (employee.account_type or '').upper() == 'HR'
 
 
 def _employee_dashboard(employee):
@@ -143,9 +134,7 @@ def _employee_dashboard(employee):
 
 
 def home(request):
-    employee_count = Employee.objects.filter(
-        account_type__iexact='EMPLOYEE'
-    ).count()
+    employee_count = _department_employees_query().count()
     departments = [
         {
             'slug': department['slug'],
@@ -284,9 +273,7 @@ def manager_dashboard(request):
             account_type__iexact='EMPLOYEE'
         ).count(),
         'total_hr': employees.filter(account_type__iexact='HR').count(),
-        'total_admins': employees.filter(
-            Q(account_type__iexact='ADMIN') | Q(role__iexact='ADMIN')
-        ).count(),
+        'total_admins': employees.filter(account_type__iexact='ADMIN').count(),
         'total_departments': DEPARTMENT_COUNT,
     }
     return render(request, 'manager_dashboard.html', context)
@@ -360,6 +347,12 @@ def edit_employee(request, id):
     if employee.pk == manager.pk:
         messages.error(request, 'You cannot edit your own manager account.')
         return redirect('manager_dashboard')
+    if employee.account_type != 'EMPLOYEE':
+        messages.error(
+            request,
+            'Managers can edit normal employee accounts only.',
+        )
+        return redirect('manager_dashboard')
 
     form = ManagerEmployeeEditForm(
         request.POST or None,
@@ -385,12 +378,11 @@ def delete_employee(request, employee_id):
         messages.error(request, 'Manager access is required.')
         return redirect('login')
 
-    employee = get_object_or_404(Employee, employee_id__iexact=employee_id)
-    if employee.pk == manager.pk or (
-        (employee.account_type or '').upper() == 'MANAGER'
-    ):
-        messages.error(request, 'You cannot delete your own or another manager account.')
-        return redirect('manager_dashboard')
+    employee = get_object_or_404(
+        Employee,
+        employee_id__iexact=employee_id,
+        account_type__iexact='EMPLOYEE',
+    )
 
     employee.delete()
     messages.success(request, 'Employee account deleted successfully.')
@@ -464,9 +456,9 @@ def forgot_password(request):
         if action == 'send_otp':
             _clear_password_reset_session(request)
             email = request.POST.get('email', '').strip()
-            employee = Employee.objects.filter(email__iexact=email).exclude(
-                Q(account_type__iexact='ADMIN') | Q(role__iexact='ADMIN')
-            ).first()
+            employee = Employee.objects.filter(
+                email__iexact=email
+            ).exclude(account_type__iexact='ADMIN').first()
             if not employee:
                 error = 'No employee account is registered with that email.'
             elif not settings.EMAIL_HOST_USER or not settings.EMAIL_HOST_PASSWORD:
@@ -553,10 +545,7 @@ def forgot_password(request):
                         email__iexact=request.session.get(
                             'password_reset_email', ''
                         )
-                    ).exclude(
-                        Q(account_type__iexact='ADMIN')
-                        | Q(role__iexact='ADMIN')
-                    ).first()
+                    ).exclude(account_type__iexact='ADMIN').first()
                     if not employee:
                         error = 'The account could not be found.'
                         _clear_password_reset_session(request)

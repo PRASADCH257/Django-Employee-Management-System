@@ -243,11 +243,7 @@
                             <td>
 
                                 <span class="account-type {{ emp.account_type|lower }}">
-                                    {% if emp.account_type|upper == 'ADMIN' or emp.role|upper == 'ADMIN' %}
-                                        Admin
-                                    {% else %}
-                                        {{ emp.get_account_type_display }}
-                                    {% endif %}
+                                    {{ emp.get_account_type_display }}
                                 </span>
 
                             </td>
@@ -256,7 +252,7 @@
                             <!-- Professional Role -->
 
                             <td>
-                                {{ emp.role|default:"Not Assigned" }}
+                                {{ emp.display_role }}
                             </td>
 
                             <td>
@@ -289,7 +285,7 @@
                                         View
                                     </a>
 
-                                    {% if emp.id != manager.id %}
+                                    {% if emp.account_type == 'EMPLOYEE' and emp.id != manager.id %}
                                         <a
                                             href="{% url 'edit_employee' emp.id %}"
                                             class="edit-btn">
@@ -297,7 +293,7 @@
                                         </a>
                                     {% endif %}
 
-                                    {% if emp.id != manager.id and emp.account_type != 'MANAGER' %}
+                                    {% if emp.account_type == 'EMPLOYEE' and emp.id != manager.id %}
                                         <form
                                             method="POST"
                                             action="{% url 'delete_employee' emp.employee_id %}"

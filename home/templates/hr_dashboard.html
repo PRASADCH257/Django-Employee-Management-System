@@ -178,6 +178,12 @@
                     <img src="{{ employee.photo.url }}"
                          alt="HR Profile Photo"
                          width="100">
+                {% else %}
+                    <div class="profile-photo-placeholder"
+                         role="img"
+                         aria-label="Profile photo unavailable">
+                        {{ employee.full_name|first|upper }}
+                    </div>
                 {% endif %}
 
                 <p><strong>Employee ID:</strong> {{ employee.employee_id }}</p>
@@ -188,7 +194,7 @@
 
                 <p><strong>Phone:</strong> {{ employee.phone }}</p>
 
-                <p><strong>Role:</strong> {{ employee.role }}</p>
+                <p><strong>Role:</strong> {{ employee.display_role }}</p>
 
                 <p><strong>Account Type:</strong> {{ employee.get_account_type_display }}</p>
 

@@ -86,7 +86,7 @@
                     <div class="summary-copy">
                         <p class="eyebrow">Employee profile</p>
                         <h2>{{ employee.full_name }}</h2>
-                        <p>{{ employee.role|default:"Role not assigned" }}</p>
+                        <p>{{ employee.display_role }}</p>
                     </div>
                     <div class="employee-id">
                         <span>Employee ID</span>
@@ -121,7 +121,7 @@
                     <div class="details-grid">
                         <div class="detail-row">
                             <span>Role</span>
-                            <strong>{{ employee.role|default:"Not Assigned" }}</strong>
+                            <strong>{{ employee.display_role }}</strong>
                         </div>
                         <div class="detail-row">
                             <span>Department</span>
@@ -174,7 +174,7 @@
 
                 <!-- MANAGER ACTIONS -->
 
-                {% if is_manager %}
+                {% if is_manager and employee.account_type == 'EMPLOYEE' %}
 
                     <div class="action-buttons">
 
@@ -201,6 +201,10 @@
 
                     </div>
 
+                {% elif is_manager %}
+                    <p class="error-message">
+                        Managers can manage normal employee accounts only.
+                    </p>
                 {% endif %}
 
 

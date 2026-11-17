@@ -4,14 +4,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Edit Employee</title>
+    <title>Edit Employee Details</title>
     <link rel="stylesheet" href="{% static 'administration/css/dashboard.css' %}">
     <link rel="stylesheet" href="{% static 'administration/css/admin_edit_employee.css' %}">
     <script defer src="{% static 'administration/js/admin_edit_employee.js' %}"></script>
 </head>
 <body>
     <main class="container admin-edit-page">
-        <h1>Edit {{ employee.full_name }}</h1>
+        <header class="edit-header">
+            <h1>Edit Employee Details</h1>
+            <p>Update {{ employee.full_name }}'s profile and work information.</p>
+        </header>
 
         {% if messages %}
             {% for message in messages %}
@@ -21,64 +24,97 @@
 
         <form method="post" enctype="multipart/form-data">
             {% csrf_token %}
-            <section class="profile-image-container">
-                <img
-                    id="profile-image-preview"
-                    class="profile-image"
-                    alt="Current photo of {{ employee.full_name }}"
-                    {% if employee.photo %}
-                        src="{{ employee.photo.url }}"
-                    {% else %}
-                        hidden
-                    {% endif %}
-                >
-                {% if not employee.photo %}
-                    <div
-                        id="profile-image-placeholder"
-                        class="profile-image-placeholder"
-                        aria-hidden="true"
-                    >
-                        {{ employee.full_name|first|upper }}
-                    </div>
-                {% endif %}
-            </section>
-            <div class="media-edit-fields">
-                <h2 class="media-edit-heading">Documents and Files</h2>
-                {% for field in form %}
-                    {% if field.name == 'photo' or field.name == 'resume' or field.name == 'document' or field.name == 'video' %}
-                        <div class="form-group">
-                            <label for="{{ field.id_for_label }}">Change {{ field.label }}</label>
-                            {% if field.help_text %}
-                                <small class="help-text">{{ field.help_text }}</small>
-                            {% endif %}
-                            {% if field.name == 'resume' and employee.resume or field.name == 'document' and employee.document or field.name == 'video' and employee.video %}
-                                <p>A file is currently uploaded. Choose a new file to replace it.</p>
-                            {% endif %}
-                            {{ field }}
-                            {% for error in field.errors %}
-                                <p class="error">{{ error }}</p>
-                            {% endfor %}
-                        </div>
-                    {% endif %}
-                {% endfor %}
-            </div>
-            <h2>Personal, Professional, and Account Details</h2>
-            {% for field in form %}
-                {% if field.name != 'photo' and field.name != 'resume' and field.name != 'document' and field.name != 'video' %}
-                    <div class="form-group">
-                        <label for="{{ field.id_for_label }}">{{ field.label }}</label>
-                        {{ field }}
-                        {% for error in field.errors %}
-                            <p class="error">{{ error }}</p>
-                        {% endfor %}
-                    </div>
-                {% endif %}
+            {% for error in form.non_field_errors %}
+                <p class="field-error">{{ error }}</p>
             {% endfor %}
-            <button type="submit">Save changes</button>
-            <a href="{% url 'administration:admin_employee_details' %}">
-                Cancel
-            </a>
-            <a href="{% url 'administration:admin_dashboard' %}">Dashboard</a>
+
+            <section class="edit-section">
+                <h2>Profile and Documents</h2>
+                <div class="profile-photo-container">
+                    {% if employee.photo %}
+                        <img
+                            id="profile-image-preview"
+                            class="profile-image"
+                            src="{{ employee.photo.url }}"
+                            alt="Current profile photo of {{ employee.full_name }}"
+                        >
+                    {% else %}
+                        <img
+                            id="profile-image-preview"
+                            class="profile-image"
+                            alt="Profile photo preview"
+                            hidden
+                        >
+                        <div
+                            id="profile-image-placeholder"
+                            class="profile-image-placeholder"
+                            aria-hidden="true"
+                        >{{ employee.full_name|first|upper }}</div>
+                    {% endif %}
+                </div>
+                <div class="field-grid">
+                    {% for field in form %}
+                        {% if field.name == 'photo' or field.name == 'resume' or field.name == 'document' or field.name == 'video' %}
+                            <div class="form-group">
+                                <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                                {% if field.help_text %}
+                                    <small class="help-text">{{ field.help_text }}</small>
+                                {% endif %}
+                                {% if field.name == 'resume' and employee.resume %}
+                                    <p class="current-file"><a href="{{ employee.resume.url }}">Open current resume</a></p>
+                                {% elif field.name == 'document' and employee.document %}
+                                    <p class="current-file"><a href="{{ employee.document.url }}">Open current document</a></p>
+                                {% elif field.name == 'video' and employee.video %}
+                                    <p class="current-file"><a href="{{ employee.video.url }}">Open current video</a></p>
+                                {% endif %}
+                                {{ field }}
+                                {% for error in field.errors %}
+                                    <p class="field-error">{{ error }}</p>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+            </section>
+
+            <section class="edit-section">
+                <h2>Personal Information</h2>
+                <div class="field-grid">
+                    {% for field in form %}
+                        {% if field.name == 'employee_id' or field.name == 'full_name' or field.name == 'username' or field.name == 'email' or field.name == 'phone' or field.name == 'address' %}
+                            <div class="form-group {% if field.name == 'address' %}wide-field{% endif %}">
+                                <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                                {{ field }}
+                                {% for error in field.errors %}
+                                    <p class="field-error">{{ error }}</p>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+            </section>
+
+            <section class="edit-section">
+                <h2>Professional Information</h2>
+                <div class="field-grid">
+                    {% for field in form %}
+                        {% if field.name == 'salary' or field.name == 'role' or field.name == 'department' or field.name == 'current_project' or field.name == 'team_number' %}
+                            <div class="form-group">
+                                <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                                {{ field }}
+                                {% for error in field.errors %}
+                                    <p class="field-error">{{ error }}</p>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+            </section>
+
+            <div class="edit-actions">
+                <button type="submit" class="update-button">Update Details</button>
+                <a class="cancel-button" href="{% url 'administration:admin_employee_details' %}">Cancel</a>
+            </div>
         </form>
     </main>
 </body>
