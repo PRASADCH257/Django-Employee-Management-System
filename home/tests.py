@@ -914,6 +914,7 @@ class EmployeePortalTests(TestCase):
         response = self.client.post(
             reverse('edit_employee', args=[employee.pk]),
             {
+                'employee_id': employee.employee_id,
                 'full_name': employee.full_name,
                 'username': employee.username,
                 'email': employee.email,
@@ -984,7 +985,7 @@ class EmployeePortalTests(TestCase):
         self.assertEqual(department_counts['Testing'], 1)
         self.assertEqual(response.context['department_employee_total'], 1)
 
-    def test_manager_and_hr_edits_cannot_assign_privileged_roles(self):
+    def test_manager_can_assign_administration_role_but_hr_cannot(self):
         manager = Employee.objects.create(
             full_name='Role Protection Manager',
             username='roleprotectionmanager',
@@ -1011,6 +1012,7 @@ class EmployeePortalTests(TestCase):
         response = self.client.post(
             reverse('edit_employee', args=[employee.pk]),
             {
+                'employee_id': employee.employee_id,
                 'full_name': employee.full_name,
                 'username': employee.username,
                 'email': employee.email,
@@ -1024,10 +1026,10 @@ class EmployeePortalTests(TestCase):
                 'team_number': '',
             },
         )
-        self.assertEqual(response.status_code, 200)
+        self.assertRedirects(response, reverse('manager_dashboard'))
         employee.refresh_from_db()
-        self.assertEqual(employee.account_type, 'EMPLOYEE')
-        self.assertEqual(employee.role, 'Software Engineer')
+        self.assertEqual(employee.account_type, 'ADMIN')
+        self.assertEqual(employee.role, 'ADMINISTRATION')
 
         hr = Employee.objects.create(
             full_name='Role Protection HR',
@@ -1039,11 +1041,19 @@ class EmployeePortalTests(TestCase):
             account_type='HR',
             role='HR',
         )
+        hr_editable_employee = Employee.objects.create(
+            full_name='HR Editable Employee',
+            username='hreditableemployee',
+            email='hreditableemployee@example.com',
+            password=make_password('A-employee-password-482!'),
+            phone='1234567893',
+            address='Employee address',
+        )
         session = self.client.session
         session['home_employee_id'] = hr.pk
         session.save()
         response = self.client.post(
-            reverse('hr_edit_employee', args=[employee.pk]),
+            reverse('hr_edit_employee', args=[hr_editable_employee.pk]),
             {
                 'salary': '',
                 'role': 'ADMINISTRATION',
@@ -1053,9 +1063,9 @@ class EmployeePortalTests(TestCase):
             },
         )
         self.assertEqual(response.status_code, 200)
-        employee.refresh_from_db()
-        self.assertEqual(employee.account_type, 'EMPLOYEE')
-        self.assertEqual(employee.role, 'Software Engineer')
+        hr_editable_employee.refresh_from_db()
+        self.assertEqual(hr_editable_employee.account_type, 'EMPLOYEE')
+        self.assertIsNone(hr_editable_employee.role)
 
     def test_department_counts_use_department_field_not_role(self):
         employee_data = {
@@ -1435,7 +1445,7 @@ class EmployeePortalTests(TestCase):
             self.assertEqual(self.client.get(reverse(route)).status_code, 200)
             self.client.get(reverse('logout'))
 
-    def test_manager_cannot_edit_or_delete_administration_accounts(self):
+    def test_manager_can_view_and_edit_all_account_types(self):
         manager = Employee.objects.create(
             full_name='Account Manager',
             username='accountmanager',
@@ -1445,17 +1455,32 @@ class EmployeePortalTests(TestCase):
             address='Manager address',
             account_type='MANAGER',
             role='EMPLOYEE',
+            department='DEVELOPMENT',
         )
-        admin = Employee.objects.create(
-            full_name='Dashboard Admin',
-            username='dashboardadmin',
-            email='dashboardadmin@example.com',
-            password=make_password('A-unique-password-482!'),
-            phone='0987654321',
-            address='Admin address',
-            account_type='ADMIN',
-            role='EMPLOYEE',
-        )
+        accounts = []
+        for index, (account_type, role, department) in enumerate((
+            ('ADMIN', 'ADMINISTRATION', 'HR'),
+            ('MANAGER', 'EMPLOYEE', 'TESTING_QA'),
+            ('HR', 'HR', 'DATABASE_ADMINISTRATION'),
+            ('EMPLOYEE', 'EMPLOYEE', 'IT_SUPPORT'),
+        )):
+            accounts.append(Employee.objects.create(
+                employee_id=(
+                    '26MQ1A0102' if account_type == 'ADMIN'
+                    else '26MQ1G0102' if account_type == 'MANAGER'
+                    else f'26MQ1A010{index + 4}'
+                ),
+                full_name=f'Dashboard {account_type} {index}',
+                username=f'dashboard_{account_type.lower()}_{index}',
+                email=f'dashboard_{account_type.lower()}_{index}@example.com',
+                password=make_password('A-unique-password-482!'),
+                phone='1234567891',
+                address='Account address',
+                account_type=account_type,
+                role=role,
+                department=department,
+            ))
+
         session = self.client.session
         session['home_employee_id'] = manager.pk
         session.save()
@@ -1463,45 +1488,289 @@ class EmployeePortalTests(TestCase):
         response = self.client.get(reverse('manager_dashboard'))
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, admin.full_name)
-        self.assertContains(response, admin.email)
-        self.assertNotContains(
-            response,
-            reverse('edit_employee', args=[admin.pk]),
-        )
-        self.assertNotContains(
-            response,
-            reverse('delete_employee', args=[admin.employee_id]),
-        )
+        self.assertNotContains(response, 'Not Allowed')
         self.assertContains(response, '<p>Total Accounts</p>', html=True)
         self.assertContains(response, '<p>Total Admins</p>', html=True)
-        self.assertEqual(response.context['total_accounts'], 2)
+        self.assertEqual(response.context['total_accounts'], 5)
         self.assertEqual(response.context['total_admins'], 1)
 
-        response = self.client.get(
-            reverse('employee_detail'),
-            {'employee_id': admin.employee_id},
-        )
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, admin.full_name)
-        self.assertNotContains(
-            response,
-            reverse('edit_employee', args=[admin.pk]),
-        )
+        for account in [manager, *accounts]:
+            with self.subTest(account_type=account.account_type):
+                detail_url = (
+                    f"{reverse('employee_detail')}?"
+                    f"employee_id={account.employee_id}"
+                )
+                self.assertContains(response, detail_url)
+                self.assertContains(
+                    response,
+                    reverse('edit_employee', args=[account.pk]),
+                )
+                if account.pk == manager.pk:
+                    self.assertContains(
+                        response,
+                        'You cannot delete your own account.',
+                    )
+                else:
+                    self.assertContains(
+                        response,
+                        reverse('delete_employee', args=[account.employee_id]),
+                    )
 
-        response = self.client.get(
-            reverse('edit_employee', args=[admin.pk]),
+                detail_response = self.client.get(
+                    reverse('employee_detail'),
+                    {'employee_id': account.employee_id},
+                )
+                self.assertEqual(detail_response.status_code, 200)
+                self.assertContains(detail_response, account.full_name)
+                self.assertContains(detail_response, 'Edit Account')
+
+                edit_url = reverse('edit_employee', args=[account.pk])
+                edit_response = self.client.get(edit_url)
+                self.assertEqual(edit_response.status_code, 200)
+                form = edit_response.context['form']
+                self.assertIn('account_type', form.fields)
+                self.assertNotIn('password', form.fields)
+                self.assertFalse(form.fields['employee_id'].disabled)
+                self.assertEqual(
+                    {value for value, _ in form.fields['account_type'].choices},
+                    {'EMPLOYEE', 'HR', 'MANAGER', 'ADMIN'},
+                )
+                self.assertEqual(
+                    {value for value, _ in form.fields['role'].choices},
+                    {'HR', 'EMPLOYEE', 'ADMINISTRATION'},
+                )
+                self.assertContains(edit_response, 'name="account_type"')
+                self.assertNotContains(edit_response, 'name="password"')
+
+        updates = (
+            (manager, 'MANAGER', 'EMPLOYEE', 'HR', manager.employee_id),
+            (accounts[0], 'ADMIN', 'ADMINISTRATION', 'DEVELOPMENT', '26MQ1A0199'),
+            (accounts[1], 'MANAGER', 'EMPLOYEE', 'TESTING_QA', accounts[1].employee_id),
+            (accounts[2], 'HR', 'HR', 'DATABASE_ADMINISTRATION', accounts[2].employee_id),
+            (accounts[3], 'HR', 'EMPLOYEE', 'IT_SUPPORT', accounts[3].employee_id),
         )
+        for account, account_type, role, department, employee_id in updates:
+            with self.subTest(saved_account_type=account_type, role=role):
+                old_password = account.password
+                response = self.client.post(
+                    reverse('edit_employee', args=[account.pk]),
+                    {
+                        'employee_id': employee_id,
+                        'full_name': f'Updated {account.username}',
+                        'username': account.username,
+                        'email': account.email,
+                        'phone': '1234567899',
+                        'address': 'Updated account address',
+                        'account_type': account_type,
+                        'role': role,
+                        'department': department,
+                        'salary': '65000',
+                        'current_project': 'Manager updated project',
+                        'team_number': 'Team 9',
+                    },
+                )
+                self.assertRedirects(response, reverse('manager_dashboard'))
+                account.refresh_from_db()
+                self.assertEqual(account.employee_id, employee_id)
+                self.assertEqual(account.account_type, account_type)
+                self.assertEqual(account.role, role)
+                self.assertEqual(account.department, department)
+                self.assertEqual(account.full_name, f'Updated {account.username}')
+                self.assertEqual(account.password, old_password)
+
+        home_response = self.client.get(reverse('home'))
+        self.assertEqual(home_response.context['employee_count'], 5)
+        self.assertEqual(home_response.context['department_employee_total'], 5)
+        self.assertEqual(home_response.context['unassigned_employee_count'], 0)
+
+    def test_manager_can_delete_all_accounts_except_self(self):
+        manager = Employee.objects.create(
+            employee_id='26MQ1G0101',
+            full_name='Delete Test Manager',
+            username='deletetestmanager',
+            email='deletetestmanager@example.com',
+            password=make_password('A-unique-password-482!'),
+            phone='1234567890',
+            address='Manager address',
+            account_type='MANAGER',
+            role='EMPLOYEE',
+            department='DEVELOPMENT',
+        )
+        accounts = []
+        for index, (account_type, role, department, employee_id) in enumerate((
+            ('ADMIN', 'ADMINISTRATION', 'HR', '26MQ1A0102'),
+            ('MANAGER', 'EMPLOYEE', 'TESTING_QA', '26MQ1G0102'),
+            ('EMPLOYEE', 'EMPLOYEE', 'DATABASE_ADMINISTRATION', '26MQ1A0103'),
+            ('HR', 'HR', 'IT_SUPPORT', '26MQ1A0104'),
+        )):
+            accounts.append(Employee.objects.create(
+                employee_id=employee_id,
+                full_name=f'Deletable {account_type} {index}',
+                username=f'deletable_{account_type.lower()}_{index}',
+                email=f'deletable_{account_type.lower()}_{index}@example.com',
+                password=make_password('A-unique-password-482!'),
+                phone='1234567891',
+                address='Account address',
+                account_type=account_type,
+                role=role,
+                department=department,
+            ))
+
+        session = self.client.session
+        session['home_employee_id'] = manager.pk
+        session.save()
+
+        for deleted_count, account in enumerate(accounts, start=1):
+            with self.subTest(deleted_account_type=account.account_type):
+                delete_url = reverse(
+                    'delete_employee',
+                    args=[account.employee_id],
+                )
+                self.assertEqual(self.client.get(delete_url).status_code, 405)
+                self.assertTrue(Employee.objects.filter(pk=account.pk).exists())
+
+                response = self.client.post(delete_url)
+                self.assertRedirects(response, reverse('manager_dashboard'))
+                self.assertFalse(Employee.objects.filter(pk=account.pk).exists())
+
+                home_response = self.client.get(reverse('home'))
+                self.assertEqual(
+                    home_response.context['employee_count'],
+                    5 - deleted_count,
+                )
+                self.assertEqual(
+                    home_response.context['department_employee_total'],
+                    5 - deleted_count,
+                )
+                self.assertEqual(
+                    home_response.context['unassigned_employee_count'],
+                    0,
+                )
+
+        self_delete_url = reverse(
+            'delete_employee',
+            args=[manager.employee_id],
+        )
+        self.assertEqual(self.client.get(self_delete_url).status_code, 405)
+        response = self.client.post(self_delete_url)
+        self.assertRedirects(response, reverse('manager_dashboard'))
+        self.assertTrue(Employee.objects.filter(pk=manager.pk).exists())
+
+        unauthorized = Employee.objects.create(
+            full_name='Unauthorized Employee',
+            username='unauthorizedemployee',
+            email='unauthorizedemployee@example.com',
+            password=make_password('A-unique-password-482!'),
+            phone='1234567892',
+            address='Employee address',
+        )
+        session = self.client.session
+        session['home_employee_id'] = unauthorized.pk
+        session.save()
+
+        self.assertRedirects(
+            self.client.get(reverse('edit_employee', args=[manager.pk])),
+            reverse('login'),
+        )
+        self.assertRedirects(
+            self.client.post(self_delete_url),
+            reverse('login'),
+        )
+        self.assertTrue(Employee.objects.filter(pk=manager.pk).exists())
+
+    def test_manager_can_replace_all_account_documents(self):
+        manager = Employee.objects.create(
+            full_name='File Manager',
+            username='filemanager',
+            email='filemanager@example.com',
+            password=make_password('A-unique-password-482!'),
+            phone='1234567890',
+            address='Manager address',
+            account_type='MANAGER',
+            role='EMPLOYEE',
+        )
+        admin = Employee.objects.create(
+            full_name='File Admin',
+            username='fileadmin',
+            email='fileadmin@example.com',
+            password=make_password('A-unique-password-482!'),
+            phone='1234567891',
+            address='Admin address',
+            account_type='ADMIN',
+            role='ADMINISTRATION',
+        )
+        session = self.client.session
+        session['home_employee_id'] = manager.pk
+        session.save()
+
+        image_buffer = BytesIO()
+        Image.new('RGB', (2, 2), color='blue').save(
+            image_buffer,
+            format='PNG',
+        )
+        pdf_content = b'%PDF-1.4\n%%EOF'
+        uploads = {
+            'photo': SimpleUploadedFile(
+                'manager-updated-photo.png',
+                image_buffer.getvalue(),
+                content_type='image/png',
+            ),
+            'resume': SimpleUploadedFile(
+                'manager-updated-resume.pdf',
+                pdf_content,
+                content_type='application/pdf',
+            ),
+            'document': SimpleUploadedFile(
+                'manager-updated-document.pdf',
+                pdf_content,
+                content_type='application/pdf',
+            ),
+            'video': SimpleUploadedFile(
+                'manager-updated-video.mp4',
+                b'test video',
+                content_type='video/mp4',
+            ),
+        }
+
+        with TemporaryDirectory() as media_root:
+            with override_settings(MEDIA_ROOT=media_root):
+                response = self.client.post(
+                    reverse('edit_employee', args=[admin.pk]),
+                    {
+                        'employee_id': admin.employee_id,
+                        'full_name': admin.full_name,
+                        'username': admin.username,
+                        'email': admin.email,
+                        'phone': admin.phone,
+                        'address': admin.address,
+                        'account_type': 'ADMIN',
+                        'role': 'ADMINISTRATION',
+                        'department': 'HR',
+                        'salary': '50000',
+                        'current_project': 'File replacement',
+                        'team_number': 'Team 4',
+                        **uploads,
+                    },
+                )
+
         self.assertRedirects(response, reverse('manager_dashboard'))
         admin.refresh_from_db()
-        self.assertEqual(admin.full_name, 'Dashboard Admin')
-        self.assertEqual(admin.account_type, 'ADMIN')
-
-        response = self.client.post(
-            reverse('delete_employee', args=[admin.employee_id]),
+        self.assertEqual(
+            admin.photo.name,
+            'employees/photos/manager-updated-photo.png',
         )
-        self.assertEqual(response.status_code, 404)
-        self.assertTrue(Employee.objects.filter(pk=admin.pk).exists())
+        self.assertEqual(
+            admin.resume.name,
+            'employees/resumes/manager-updated-resume.pdf',
+        )
+        self.assertEqual(
+            admin.document.name,
+            'employees/documents/manager-updated-document.pdf',
+        )
+        self.assertEqual(
+            admin.video.name,
+            'employees/videos/manager-updated-video.mp4',
+        )
 
 
 class AdministrationPortalTests(TestCase):

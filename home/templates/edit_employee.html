@@ -4,13 +4,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Edit Employee Details</title>
+    <title>Edit Account Details</title>
     <link rel="stylesheet" href="{% static 'home/css/edit_employee.css' %}">
 </head>
 <body>
     <main class="edit-container">
         <header class="edit-header">
-            <h1>Edit Employee Details</h1>
+            <h1>Edit Account Details</h1>
             <p>Update {{ employee.full_name }}'s profile and work information.</p>
         </header>
 
@@ -72,6 +72,23 @@
                     {% for field in form %}
                         {% if field.name == 'employee_id' or field.name == 'full_name' or field.name == 'username' or field.name == 'email' or field.name == 'phone' or field.name == 'address' %}
                             <div class="form-group {% if field.name == 'address' %}wide-field{% endif %}">
+                                <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                                {{ field }}
+                                {% for error in field.errors %}
+                                    <p class="field-error">{{ error }}</p>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+            </section>
+
+            <section class="edit-section">
+                <h2>Account Type</h2>
+                <div class="field-grid">
+                    {% for field in form %}
+                        {% if field.name == 'account_type' %}
+                            <div class="form-group">
                                 <label for="{{ field.id_for_label }}">{{ field.label }}</label>
                                 {{ field }}
                                 {% for error in field.errors %}

@@ -285,15 +285,13 @@
                                         View
                                     </a>
 
-                                    {% if emp.account_type == 'EMPLOYEE' and emp.id != manager.id %}
-                                        <a
-                                            href="{% url 'edit_employee' emp.id %}"
-                                            class="edit-btn">
-                                            Edit
-                                        </a>
-                                    {% endif %}
+                                    <a
+                                        href="{% url 'edit_employee' emp.id %}"
+                                        class="edit-btn">
+                                        Edit
+                                    </a>
 
-                                    {% if emp.account_type == 'EMPLOYEE' and emp.id != manager.id %}
+                                    {% if emp.id != manager.id %}
                                         <form
                                             method="POST"
                                             action="{% url 'delete_employee' emp.employee_id %}"
@@ -308,9 +306,13 @@
                                             </button>
                                         </form>
                                     {% else %}
-                                        <span class="delete-disabled">
-                                            Not Allowed
-                                        </span>
+                                        <button
+                                            type="button"
+                                            class="delete-btn"
+                                            disabled
+                                            title="You cannot delete your own account.">
+                                            Delete
+                                        </button>
                                     {% endif %}
 
                                 </div>

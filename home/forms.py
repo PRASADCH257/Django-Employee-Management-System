@@ -291,15 +291,35 @@ class AdminEmployeeEditForm(forms.ModelForm):
 
 
 class ManagerEmployeeEditForm(AdminEmployeeEditForm):
-    """Fields managers can update without changing the employee ID."""
+    """Fields managers can update on any account."""
 
     class Meta(AdminEmployeeEditForm.Meta):
-        fields = AdminEmployeeEditForm.Meta.fields
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.fields['employee_id'].disabled = True
-        self.fields['role'].choices = ROLE_CHOICES[:2]
+        fields = [
+            'employee_id',
+            'full_name',
+            'username',
+            'email',
+            'phone',
+            'address',
+            'photo',
+            'resume',
+            'document',
+            'video',
+            'account_type',
+            'salary',
+            'role',
+            'department',
+            'current_project',
+            'team_number',
+        ]
+        labels = {
+            **AdminEmployeeEditForm.Meta.labels,
+            'account_type': 'Account Type',
+        }
+        widgets = {
+            **AdminEmployeeEditForm.Meta.widgets,
+            'account_type': forms.Select(attrs={'class': 'form-control'}),
+        }
 
 
 class EmployeeProfessionalEditForm(forms.ModelForm):

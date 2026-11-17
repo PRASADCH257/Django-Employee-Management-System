@@ -317,6 +317,11 @@ tbody tr:hover {
     background: #dc2626;
 }
 
+.delete-btn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
 /* Footer */
 
 footer {

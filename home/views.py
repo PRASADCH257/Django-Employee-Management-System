@@ -332,6 +332,11 @@ def employee_detail(request):
             'search_id': search_id,
             'error': error,
             'is_manager': _is_manager(current_employee),
+            'manager_id': (
+                current_employee.pk
+                if _is_manager(current_employee)
+                else None
+            ),
             'is_hr': _is_hr(current_employee),
         },
     )
@@ -344,15 +349,6 @@ def edit_employee(request, id):
         return redirect('login')
 
     employee = get_object_or_404(Employee, pk=id)
-    if employee.pk == manager.pk:
-        messages.error(request, 'You cannot edit your own manager account.')
-        return redirect('manager_dashboard')
-    if employee.account_type != 'EMPLOYEE':
-        messages.error(
-            request,
-            'Managers can edit normal employee accounts only.',
-        )
-        return redirect('manager_dashboard')
 
     form = ManagerEmployeeEditForm(
         request.POST or None,
@@ -378,11 +374,10 @@ def delete_employee(request, employee_id):
         messages.error(request, 'Manager access is required.')
         return redirect('login')
 
-    employee = get_object_or_404(
-        Employee,
-        employee_id__iexact=employee_id,
-        account_type__iexact='EMPLOYEE',
-    )
+    employee = get_object_or_404(Employee, employee_id__iexact=employee_id)
+    if employee.pk == manager.pk:
+        messages.error(request, 'You cannot delete your own account.')
+        return redirect('manager_dashboard')
 
     employee.delete()
     messages.success(request, 'Employee account deleted successfully.')
